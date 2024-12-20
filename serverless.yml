@@ -1,0 +1,20 @@
+service: r1-backend
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline
+  - serverless-middleware
+provider:
+  name: aws
+  stage: dev
+  region: ap-southeast-1
+  runtime: nodejs18.x
+  timeout: 150
+  tracing:
+    apiGateway: true
+    lambda: true
+functions:
+  app:
+    handler: server.handler
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'
