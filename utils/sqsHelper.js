@@ -25,12 +25,12 @@
  * CONTENTS, OR TO MANUFACTURE, USE, OR SELL ANYTHING THAT IT MAY DESCRIBE,    *
  * IN WHOLE OR IN PART.                                                        *
  *                                                                             *
- * File: \controllers\linkController.js                                        *
+ * File: \utils\sqsHelper.js                                                   *
  * Project: metricsbackend                                                     *
- * Created Date: Friday, December 20th 2024, 4:23:25 pm                        *
+ * Created Date: Monday, December 23rd 2024, 12:38:26 pm                       *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 20th 2024, 5:03:32 pm                               *
+ * Last Modified: December 23rd 2024, 12:38:29 pm                              *
  * Modified By: Renjith R T                                                    *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -41,17 +41,35 @@
  * --------------------------------------------------------------------------- *
  */
 
-const uuid = require('uuid');
+const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
+const SQS = new SQSClient({
+    credentials: defaultProvider,
+    region: process.env.SQS_REGION,
+  });
 
-
-module.exports = {
-    sendLink: async function(event, context) {
-        const functionName = 'Link Generation Api';
-        const linkId = uuid.v4();
-        const body = JSON.parse(event.body);
-        const userDetails = body.users;
-        userDetails.array.forEach(element => {
-            
-        });
+class sqsHelper {
+    async addMessageToSQS(messageBody){
+        try{
+            payload = messageBody
+            let sqsParams = {
+            QueueUrl: process.env.EMAIL_PROCESSOR_QUEUE_URL,
+            MessageBody: JSON.stringify(payload),
+            };
+            const messageCommand = new SendMessageCommand(sqsParams);
+            let result = await SQS.send(messageCommand);
+            console.log(
+            `[INFO] [${functionName}] Message has been Successfully sent \n Queue Url: ${sqsParams["QueueUrl"]} \n MessageDetails:`,
+            result
+            );
+        } catch (error) {
+            console.error(`Error while Adding message to sqs`, error)
+            return {
+                message: 'SQS ERROR',
+                status: 500
+            }
+        }
+        
     }
 }
+
+module.exports = new sqsHelper()
