@@ -30,7 +30,7 @@
  * Created Date: Monday, December 23rd 2024, 12:38:26 pm                       *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 23rd 2024, 12:38:29 pm                              *
+ * Last Modified: December 23rd 2024, 7:46:11 pm                               *
  * Modified By: Renjith R T                                                    *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -43,14 +43,14 @@
 
 const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
 const SQS = new SQSClient({
-    credentials: defaultProvider,
     region: process.env.SQS_REGION,
   });
 
 class sqsHelper {
     async addMessageToSQS(messageBody){
+        let functionName='addMessageToSQS'
         try{
-            payload = messageBody
+            let payload = messageBody
             let sqsParams = {
             QueueUrl: process.env.EMAIL_PROCESSOR_QUEUE_URL,
             MessageBody: JSON.stringify(payload),

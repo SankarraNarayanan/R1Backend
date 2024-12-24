@@ -30,7 +30,7 @@
  * Created Date: Friday, December 20th 2024, 4:23:25 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 23rd 2024, 5:30:48 pm                               *
+ * Last Modified: December 23rd 2024, 7:48:26 pm                               *
  * Modified By: Renjith R T                                                    *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -121,8 +121,8 @@ const sendLink = async function (req, res) {
         },
       });
       userLinkList.push({
-        email: "",
-        link: `${process.env.CANDIDATE_PANEL_CLOUDFRONT_URL}/${linkUUID}`,
+        email: e.emailId,
+        link: `https://${process.env.CANDIDATE_PANEL_CLOUDFRONT_URL}?linkID=${linkUUID}`,
       });
     });
 
