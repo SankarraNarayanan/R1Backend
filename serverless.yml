@@ -2,7 +2,6 @@ service: r1-backend
 plugins:
   - serverless-dotenv-plugin
   - serverless-offline
-  - serverless-middleware
 provider:
   name: aws
   stage: dev
@@ -18,3 +17,12 @@ functions:
     events:
       - http: ANY /
       - http: 'ANY {proxy+}'
+
+  sendLink:
+    handler:
+      - controller/linkController.sendLink
+    events:
+      - http:
+          path: /sendLink
+          method: post
+          cors: true
