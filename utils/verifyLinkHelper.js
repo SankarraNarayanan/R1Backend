@@ -26,11 +26,11 @@
  * IN WHOLE OR IN PART.                                                        *
  *                                                                             *
  * File: \utils\verifyLinkHelper.js                                            *
- * Project: metricsbackend                                                     *
+ * Project: r1-backend                                                         *
  * Created Date: Tuesday, December 24th 2024, 11:28:36 am                      *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 24th 2024, 1:08:41 pm                               *
+ * Last Modified: December 24th 2024, 1:55:53 pm                               *
  * Modified By: Renjith R T                                                    *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -48,6 +48,32 @@ const { unmarshall } = require("@aws-sdk/util-dynamodb");
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
   });
+
+async function updateStartEndTime(linkId){
+    const functionName = "UpdateStartEndTime";
+    const params = {
+        TableName: process.env.TABLENAME,
+        Key: {
+            PK: { S: "LINK" }, 
+            SK: { S: linkId }, 
+        },
+        UpdateExpression: 'SET startTime = :newStartTime, endTime = :newEndTime, updatedAt = :newUpdatedAt',
+        ExpressionAttributeValues: {
+            ':newUpdatedAt': { N: Math.floor(Date.now() / 1000).toString() },
+            ':newStartTime': { N: Math.floor(Date.now() / 1000).toString()},
+            ':newEndTime': { N: Math.floor((Date.now() + 20 * 60 * 1000) / 1000).toString()}
+        },
+        ReturnValues: 'UPDATED_NEW', 
+    };
+
+    try {
+        const command = new UpdateItemCommand(params);
+        const response = await dynamoDBClient.send(command);
+        console.log('Update succeeded:', response);
+    } catch (error) {
+        console.error('Error updating item:', error);
+    }
+}
 
 async function markLinkInActive(linkId){
     const functionName = "Mark Link InActive";
@@ -87,7 +113,6 @@ async function verifyLink(linkId){
             'SK': { S: linkId }
         }
     };
-    console.log('params: ', params);
     console.log('DynamoParams', params);
     try {
         const command = new GetItemCommand(params);
@@ -99,6 +124,9 @@ async function verifyLink(linkId){
             console.log('returnData: ', returnData);
             if(returnData.status == "ACTIVE"){
                 let currentTime = Math.floor(Date.now() / 1000);
+                if(returnData.endTime != 0 && returnData.endTime >= currentTime){
+                    return true;
+                }
                 if(returnData.expTime >= currentTime){
                     if(returnData.endTime == 0){
                         return true;
@@ -129,3 +157,4 @@ async function verifyLink(linkId){
         };
     }
 }
+updateStartEndTime('tcSp2m182gfkAJhEhf1G9Y');
