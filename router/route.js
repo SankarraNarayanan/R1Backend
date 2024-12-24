@@ -26,12 +26,12 @@
  * IN WHOLE OR IN PART.                                                        *
  *                                                                             *
  * File: \router\route.js                                                      *
- * Project: metricsbackend                                                     *
+ * Project: r1-backend                                                         *
  * Created Date: Friday, December 20th 2024, 5:06:42 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 20th 2024, 5:08:52 pm                               *
- * Modified By: Renjith R T                                                    *
+ * Last Modified: December 24th 2024, 4:09:33 pm                               *
+ * Modified By: Abirami                                                        *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -44,9 +44,12 @@
 const cors = require('cors');
 let documentController = require('../controller/documentController');
 let linkController = require('../controller/linkController')
+let jdController = require('../controller/jdController');
 
 module.exports = function (app) {
     app.route('/writePresignedUrl').get(documentController.getPresignedUrlWrite, cors());
     app.route('/readPresignedUrl').get(documentController.getPresignedUrlRead, cors());
     app.route('/sendLink').get(linkController.sendLink, cors());
+    app.route('/getListOfJD').get(jdController.getListOfJD, cors());
+    app.route('/getAllResumesForJD').get(jdController.getAllResumesForJD, cors());
 }
