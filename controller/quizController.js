@@ -450,6 +450,32 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
     }
 }
 
+async function linkStatusCheck(req, res){
+    let APIName = 'linkStatusCheck'; let verifyLinkResponse = null;
+    try{
+        let { linkId } = req.params;
+        console.log(`[INFO][${APIName}] API Execcution time StartTime: `, Date.now());
+        verifyLinkResponse = await verifyLink(linkId);
+        if(!verifyLinkResponse.status){
+            console.error(`[ERROR][${APIName}] Link Expired LinkID: ${linkId}`);
+            return res.status(200).send({
+                message: 'SUCCESS',
+                link_status: "INACTIVE"
+            });
+        }
+        let status = verifyLinkResponse?.data?.status;
+        return res.status(200).send({
+            message: 'SUCCESS',
+            link_status: status
+        });
+    } catch(error) {
+        console.error(`[ERROR][${APIName}] outter catch triggered ERROR: ${error}, ${req.params.linkId}`);
+        return  res.status(500).send({
+            message: 'INTERNAL SERVER ERROR'
+        });
+    }
+}
 
 
-module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers};
+
+module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers, linkStatusCheck};
