@@ -3,7 +3,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 let bodyParser = require('body-parser');
-const serverless = require('serverless-http');
+const awsServerlessExpress = require('aws-serverless-express');
 require('dotenv').config();
 const routes = require('./router/route');
 
@@ -18,4 +18,8 @@ app.listen(PORT, () => {
     console.log('Listening at http://localhost:' + PORT + '/');
 });
 
-module.exports.handler = serverless(app);
+const server = awsServerlessExpress.createServer(app);
+
+// Export Lambda handler
+exports.lambdaHandler = (event, context) =>
+    awsServerlessExpress.proxy(server, event, context);

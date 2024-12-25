@@ -45,8 +45,10 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { PutCommand, DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
 const { verifyLink } = require("../utils/verifyLinkHelper");
 const { questionGenerator } = require('../AiController/questionGenerator');
+const { fromSSO } = require('@aws-sdk/credential-providers');
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
+    //credentials: fromSSO({ profile: 'default' }),
 });
 const docClient = DynamoDBDocumentClient.from(dynamoDBClient);
 const { getJDDetails } = require('./jdController')
@@ -182,7 +184,12 @@ const submitQuestion = async function(req,res){
     }
 }
 
+const startTest = async function(req, res){
+
+}
+
 const getQuestionsWithLinkId = async function (req,res){
+    console.log(`[INFO][getQuestionsWithLinkId] API Entry Time ${Date.now()}`);
     try {
         let { linkId } = req.params;
         if(!linkId){
@@ -191,10 +198,12 @@ const getQuestionsWithLinkId = async function (req,res){
 
         let verify = await verifyLink(linkId);
         if(!verify.status){
+            console.log(`[ERROR][getQuestionsWithLinkId] Your Link is not active ${Date.now()}`);
             return res.status(400).json({ error: 'Your Link is not active' });
         }
         let questions = await getQuestionsWithResumeId(verify.data.resumeId);
         if(!questions.status){
+            console.log(`[ERROR][getQuestionsWithLinkId] Your Error getting Questions ${Date.now()}`);
             return res.status(400).json({ error: 'Error getting Questions' });
         }
         let questionsList = questions.data.questions;
@@ -205,10 +214,11 @@ const getQuestionsWithLinkId = async function (req,res){
             let {answer, ...questionWithoutAns} = question;
             return questionWithoutAns;
         });
-        return res.status(200).json({ data: questionsWithoutAnswer });
+        console.log(`[INFO][getQuestionsWithLinkId] Executed Successfully ${Date.now()}`);
+        return res.status(200).json({ questions: questionsWithoutAnswer, date: Date.now(), endTimeDetails: verify.data.endTimeDetails });
     } catch (error) {
         console.log('ERROR in getQuestionsWithLinkId ::',error)
-        return res.status(500).json({ error: 'Error getting question' });
+        return res.status(500).json({ error: 'Error getting question', date: Date.now() });
     }
 };
 
@@ -439,5 +449,7 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
         });
     }
 }
+
+
 
 module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers};

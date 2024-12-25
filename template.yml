@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  ExpressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/app.lambdaHandler
+      Runtime: nodejs22.x
+      CodeUri: .
+      MemorySize: 512
+      Timeout: 15
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
