@@ -1,6 +1,7 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { PutCommand, DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
 const { verifyLink } = require("../utils/verifyLinkHelper");
+const { questionGenerator } = require('../AiController/questionGenerator');
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
   });
@@ -27,7 +28,8 @@ const putQuestions = async function(resumeId,questions){
             Item: {
               PK: resumeId,
               SK: "QUESTIONS",
-              Data: questions,
+              questions,
+              createdAt: Math.floor(Date.now() / 1000)
             },
         });
 
@@ -42,6 +44,54 @@ const putQuestions = async function(resumeId,questions){
             status: false,
             message: 'Error adding question'
         }
+    }
+};
+
+const generateQuestions = async function (req,res){
+    try {
+        let { resumeId,jdId } = req.body;
+        if(!resumeId || !jdId){
+            return res.status(400).json({ error: 'Missing Rquired Params resumeId, jdId ' });
+        }
+        let command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+              PK: 'JD',
+              SK: jdId,
+            },
+        });
+
+        let jdResponse = await docClient.send(command);
+        let jdDetails = jdResponse.Item || {};
+        if(!jdDetails.fileId){
+            return res.status(400).json({ error: 'JD file id missing.' });
+        }
+        command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+              PK: jdId,
+              SK: resumeId,
+            },
+        });
+
+        let resumeResponse = await docClient.send(command);
+        let resumeDetails = resumeResponse.Item || {};
+        if(!resumeDetails.fileId){
+            return res.status(400).json({ error: 'Resume file id missing.' });
+        }
+        let geneartedQuestions = await questionGenerator(resumeDetails.fileId,jdDetails.fileId);
+        let parsedQuestions = JSON.parse(geneartedQuestions);
+        if(!parsedQuestions.questions){
+            return res.status(400).json({ error: 'Error generating Questions' });
+        }
+        let putQuest = await putQuestions(resumeId,parsedQuestions.questions);
+        if(!putQuest.status){
+            return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
+        }
+        return res.status(200).json({ messsage: 'Question Genarated Succesfully'});
+    } catch (error) {
+        console.error("Error Generating question:", error);
+        return res.status(500).json({ error: 'Error Generating question' });
     }
 };
 
@@ -151,4 +201,4 @@ const getQuestionsWithResumeId = async function(resumeId){
     }
 }
 
-module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion};
+module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions};

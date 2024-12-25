@@ -172,6 +172,5 @@ async function verifyLink(linkId){
         };
     }
 }
-updateStartEndTime('tcSp2m182gfkAJhEhf1G9Y');
 
 module.exports = {verifyLink}
