@@ -30,7 +30,7 @@
  * Created Date: Monday, December 23rd 2024, 3:30:29 pm                        *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 8:11:20 pm                               *
+ * Last Modified: December 25th 2024, 8:30:56 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -51,7 +51,6 @@ const openai = new OpenAI({
 function evaluateUserAnswers(questionData, userAnswers) {
     const correctAnswers = [];
     const wrongAnswers = [];
-    console.log(questionData)
     // Loop through the questions to compare user answers
     questionData.forEach((question) => {
         const userAnswer = userAnswers[question.id];

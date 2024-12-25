@@ -27,10 +27,10 @@
  *                                                                             *
  * File: \controller\quizController.js                                         *
  * Project: r1-backend                                                         *
- * Created Date: Wednesday, December 25th 2024, 12:26:19 pm                    *
+ * Created Date: Wednesday, December 25th 2024, 8:23:44 pm                     *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 7:58:27 pm                               *
+ * Last Modified: December 25th 2024, 8:32:07 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -43,6 +43,8 @@
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { PutCommand, DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { verifyLink } = require("../utils/verifyLinkHelper");
+const { questionGenerator } = require('../AiController/questionGenerator');
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
 });
@@ -68,9 +70,10 @@ const putQuestions = async function (resumeId, questions) {
         const command = new PutCommand({
             TableName: process.env.TABLENAME,
             Item: {
-                PK: resumeId,
-                SK: "QUESTIONS",
-                Data: questions,
+              PK: resumeId,
+              SK: "QUESTIONS",
+              questions,
+              createdAt: Math.floor(Date.now() / 1000)
             },
         });
 
@@ -88,7 +91,129 @@ const putQuestions = async function (resumeId, questions) {
     }
 };
 
-const getQuestions = async function (resumeId) {
+const generateQuestions = async function (req,res){
+    try {
+        let { resumeId,jdId } = req.body;
+        if(!resumeId || !jdId){
+            return res.status(400).json({ error: 'Missing Rquired Params resumeId, jdId ' });
+        }
+        let command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+              PK: 'JD',
+              SK: jdId,
+            },
+        });
+
+        let jdResponse = await docClient.send(command);
+        let jdDetails = jdResponse.Item || {};
+        if(!jdDetails.fileId){
+            return res.status(400).json({ error: 'JD file id missing.' });
+        }
+        command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+              PK: jdId,
+              SK: resumeId,
+            },
+        });
+
+        let resumeResponse = await docClient.send(command);
+        let resumeDetails = resumeResponse.Item || {};
+        if(!resumeDetails.fileId){
+            return res.status(400).json({ error: 'Resume file id missing.' });
+        }
+        let geneartedQuestions = await questionGenerator(resumeDetails.fileId,jdDetails.fileId);
+        let parsedQuestions = JSON.parse(geneartedQuestions);
+        if(!parsedQuestions.questions){
+            return res.status(400).json({ error: 'Error generating Questions' });
+        }
+        let putQuest = await putQuestions(resumeId,parsedQuestions.questions);
+        if(!putQuest.status){
+            return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
+        }
+        return res.status(200).json({ messsage: 'Question Genarated Succesfully'});
+    } catch (error) {
+        console.error("Error Generating question:", error);
+        return res.status(500).json({ error: 'Error Generating question' });
+    }
+};
+
+const submitQuestion = async function(req,res){
+    try {
+        let { linkId,questionId,selectedOptionId } = req.body;
+        if(!linkId || !questionId || !selectedOptionId){
+            return res.status(400).json({ error: 'Missing Rquired Params linkId, questionId selectedOptionId' });
+        }
+
+        let verify = await verifyLink(linkId);
+        if(!verify.status){
+            return res.status(400).json({ error: 'Your Link is not active' });
+        }
+
+        let resumeId = verify.data.resumeId;
+        const command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+              PK: resumeId,
+              SK: "USER_ANSWERS",
+            },
+        });
+
+        let answerResponse = await docClient.send(command);
+        const item = answerResponse.Item || {}; 
+        const updatedAnswers = item.answers || {}; 
+        updatedAnswers[questionId] = selectedOptionId;
+
+        const putCommand = new PutCommand({
+            TableName: process.env.TABLENAME,
+            Item: {
+                PK: resumeId,
+                SK: "USER_ANSWERS",
+                answers: updatedAnswers, 
+            },
+        });
+
+        await docClient.send(putCommand);
+        return res.status(200).json({ messsage: 'Question Submitted Succesfully' });
+    } catch (error) {
+        console.error("Error Submiting question:", error);
+        return res.status(500).json({ error: 'Error Submiting question' });
+    }
+}
+
+const getQuestionsWithLinkId = async function (req,res){
+    try {
+        let { linkId } = req.params;
+        if(!linkId){
+            return res.status(400).json({ error: 'Missing linkId' });
+        }
+
+        let verify = await verifyLink(linkId);
+        if(!verify.status){
+            return res.status(400).json({ error: 'Your Link is not active' });
+        }
+        let questions = await getQuestionsWithResumeId(verify.data.resumeId);
+        if(!questions.status){
+            return res.status(400).json({ error: 'Error getting Questions' });
+        }
+        let questionsList = questions.data.questions;
+        if(!questionsList){
+            return res.status(200).json({ data: [] });
+        }
+        let questionsWithoutAnswer =  questionsList.map(question=>{
+            let {answer, ...questionWithoutAns} = question;
+            return questionWithoutAns;
+        });
+        return res.status(200).json({ data: questionsWithoutAnswer });
+    } catch (error) {
+        console.log('ERROR in getQuestionsWithLinkId ::',error)
+        return res.status(500).json({ error: 'Error getting question' });
+    }
+};
+
+
+const getQuestionsWithResumeId = async function(resumeId){
     try {
         if (!resumeId) {
             return {
@@ -107,9 +232,9 @@ const getQuestions = async function (resumeId) {
 
         let response = await docClient.send(command);
         return {
-            status: true,
-            data: response,
-            message: 'Question got successfully'
+            status : true,
+            data: response.Item,
+            message : 'Question got successfully'
         };
     } catch (error) {
         console.error("Error getting questions:", error);
@@ -315,4 +440,4 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
     }
 }
 
-module.exports = { putQuestions, getQuestions, evaluateAnswers };
+module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers};
