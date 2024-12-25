@@ -1,5 +1,6 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { PutCommand, DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { PutCommand, DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { verifyLink } = require("../utils/verifyLinkHelper");
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
   });
@@ -44,8 +45,38 @@ const putQuestions = async function(resumeId,questions){
     }
 };
 
+const getQuestionsWithLinkId = async function (req,res){
+    try {
+        let { linkId } = req.params;
+        if(!linkId){
+            return res.status(400).json({ error: 'Missing linkId' });
+        }
 
-const getQuestions = async function(resumeId){
+        let verify = await verifyLink(linkId);
+        if(!verify.status){
+            return res.status(400).json({ error: 'Your Link is not active' });
+        }
+        let questions = await getQuestionsWithResumeId(verify.data.resumeId);
+        if(!questions.status){
+            return res.status(400).json({ error: 'Error getting Questions' });
+        }
+        let questionsList = questions.data.questions;
+        if(!questionsList){
+            return res.status(200).json({ data: [] });
+        }
+        let questionsWithoutAnswer =  questionsList.map(question=>{
+            let {answer, ...questionWithoutAns} = question;
+            return questionWithoutAns;
+        });
+        return res.status(200).json({ data: questionsWithoutAnswer });
+    } catch (error) {
+        console.log('ERROR in getQuestionsWithLinkId ::',error)
+        return res.status(500).json({ error: 'Error getting question' });
+    }
+};
+
+
+const getQuestionsWithResumeId = async function(resumeId){
     try {
         if (!resumeId) {
             return {
@@ -65,7 +96,7 @@ const getQuestions = async function(resumeId){
         let response = await docClient.send(command);
         return {
             status : true,
-            data: response,
+            data: response.Item,
             message : 'Question got successfully'
         };
     } catch (error) {
@@ -77,4 +108,4 @@ const getQuestions = async function(resumeId){
     }
 }
 
-module.exports = {putQuestions,getQuestions};
+module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId};

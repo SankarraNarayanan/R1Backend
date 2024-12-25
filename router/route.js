@@ -45,6 +45,7 @@ const cors = require('cors');
 let documentController = require('../controller/documentController');
 let linkController = require('../controller/linkController')
 let jdController = require('../controller/jdController');
+let quizController = require('../controller/quizController')
 
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
@@ -56,4 +57,5 @@ module.exports = function (app) {
     app.route('/sendLink').get(linkController.sendLink, cors());
     app.route('/getListOfJD').get(jdController.getListOfJD, cors());
     app.route('/getAllResumesForJD').get(jdController.getAllResumesForJD, cors());
+    app.route('/getQuestions/:linkId').get(quizController.getQuestionsWithLinkId, cors());
 }
