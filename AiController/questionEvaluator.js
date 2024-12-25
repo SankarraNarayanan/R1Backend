@@ -25,13 +25,13 @@
  * CONTENTS, OR TO MANUFACTURE, USE, OR SELL ANYTHING THAT IT MAY DESCRIBE,    *
  * IN WHOLE OR IN PART.                                                        *
  *                                                                             *
- * File: \router\route.js                                                      *
+ * File: \AiController\questionEvaluator.js                                    *
  * Project: r1-backend                                                         *
- * Created Date: Friday, December 20th 2024, 5:06:42 pm                        *
- * Author: Renjith R T <renjith@codestax.ai>                                   *
+ * Created Date: Tuesday, December 24th 2024, 4:22:51 pm                       *
+ * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 24th 2024, 4:09:33 pm                               *
- * Modified By: Abirami                                                        *
+ * Last Modified: December 24th 2024, 4:22:51 pm                               *
+ * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -41,17 +41,3 @@
  * --------------------------------------------------------------------------- *
  */
 
-const cors = require('cors');
-let documentController = require('../controller/documentController');
-let linkController = require('../controller/linkController')
-let jdController = require('../controller/jdController');
-const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage() });
-
-module.exports = function (app) {
-    app.route('/uploadFile').post(upload.single('file'),documentController.uploadFile, cors());
-    app.route('/readPresignedUrl').get(documentController.getPresignedUrlRead, cors());
-    app.route('/sendLink').get(linkController.sendLink, cors());
-    app.route('/getListOfJD').get(jdController.getListOfJD, cors());
-    app.route('/getAllResumesForJD').get(jdController.getAllResumesForJD, cors());
-}
