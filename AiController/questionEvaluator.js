@@ -30,7 +30,7 @@
  * Created Date: Monday, December 23rd 2024, 3:30:29 pm                        *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 12:46:02 pm                              *
+ * Last Modified: December 25th 2024, 8:11:20 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -43,18 +43,17 @@
 
 const OpenAI = require('openai');
 const fs = require('fs');
-
 const openai = new OpenAI({
-    apiKey: process.env.API_key
+    apiKey: process.env.API_KEY
 });
 
 // Function to evaluate user answers
 function evaluateUserAnswers(questionData, userAnswers) {
     const correctAnswers = [];
     const wrongAnswers = [];
-
+    console.log(questionData)
     // Loop through the questions to compare user answers
-    questionData.questions.forEach((question) => {
+    questionData.forEach((question) => {
         const userAnswer = userAnswers[question.id];
 
         if (userAnswer === question.answer) {
@@ -77,63 +76,6 @@ function evaluateUserAnswers(questionData, userAnswers) {
     return { correctAnswers, wrongAnswers };
 }
 
-// Function to upload user evaluations and questions
-async function writeToFile(fileName, fileData) {
-    return new Promise((resolve, reject) => {
-
-        fs.writeFile(fileName, JSON.stringify(fileData), 'utf8', (err) => {
-            if (err) {
-                reject('Error writing to file:', err);
-            } else {
-                console.log('Data successfully written to file');
-                resolve(fileName);
-            }
-        });
-    });
-}
-
-async function uploadToOpenAI(fileName) {
-    try {
-        const userEvaluationsUpload = await openai.files.create({
-            file: fs.createReadStream(fileName),
-            purpose: "assistants",
-        });
-        console.log("User evaluations uploaded:", userEvaluationsUpload);
-        return userEvaluationsUpload.id;
-    } catch (error) {
-        console.error("Error uploading data:", error);
-    }
-}
-
-async function deleteFile(fileName) {
-    return new Promise((resolve, reject) => {
-        fs.unlink(fileName, (err) => {
-            if (err) {
-                reject(`Error deleting file: ${err.message}`);
-            } else {
-                console.log(`File ${fileName} successfully deleted.`);
-                resolve(`File ${fileName} deleted.`);
-            }
-        });
-    });
-}
-
-async function writeFileToOpenAi(file, fileData) {
-    try {
-        // Write to file first
-        const fileName = await writeToFile(file, fileData);
-
-        // Now upload the file to OpenAI
-        const fileId = await uploadToOpenAI(fileName);
-        if(fileId){
-            deleteFile(fileName);
-        }
-        return fileId;
-    } catch (error) {
-        console.error("Error in the process:", error);
-    }
-}
-
 // Function to create evaluation assistant
 async function createEvaluationAssistant() {
     try {
@@ -154,61 +96,114 @@ async function createEvaluationAssistant() {
     }
 }
 
-// Function to generate verdict
-async function generateVerdict(files, assist_id) {
-    const { userResponseFileId, jdFileId } = files;
+// Function to upload to openAi
+async function uploadToOpenAIFromBuffer(data) {
+    const apiName = "UploadToOpenAI";
+    console.log(`[${apiName}] Starting the upload process...`);
 
-    const thread = await openai.beta.threads.create({
-        messages: [
-            {
-                role: "user",
-                content:
-                    "Evaluate the candidate against the resume and the test result having the correct and incorrect answers provided by the candidate which is stored in the file. and Provide a detailed assessment of the candidate, including: Strengths and weaknesses based on their answers. Alignment with the job requirements. Suggestions for areas of improvement, if needed. An overall recommendation on whether the candidate is suitable for further interview rounds based on your analysis with the resume, match for the resume against the job description and the test results.",
-                attachments: [
-                    { file_id: jdFileId, tools: [{ type: "file_search" }] },
-                    { file_id: userResponseFileId, tools: [{ type: "file_search" }] }
-                ],
-            },
-        ],
-    });
+    const fileName = `userResponse${Date.now()}.json`;
+    try {
+        const buffer = Buffer.from(JSON.stringify(data), 'utf-8');
+        fs.writeFileSync(fileName, buffer);
 
-    const run = await openai.beta.threads.runs.createAndPoll(
-        thread.id,
-        {
-            assistant_id: assist_id,
-            instructions: "Evaluate the candidate against the resume and the test result having the correct and incorrect answers provided by the candidate which is stored in the file. and Provide a detailed assessment of the candidate, including: Strengths and weaknesses based on their answers. Alignment with the job requirements. Suggestions for areas of improvement, if needed. An overall recommendation on whether the candidate is suitable for further interview rounds based on your analysis with the resume, match for the resume against the job description and the test results.",
+        if (!fs.existsSync(fileName)) {
+            console.error(`[${apiName}] File does not exist after writing: ${fileName}`);
+            return { status: false, error: `File ${fileName} does not exist after write` };
         }
-    );
 
-    if (run.status === 'completed') {
-        const messages = await openai.beta.threads.messages.list(
-            run.thread_id
-        );
-        for (const message of messages.data.reverse()) {
-            console.log(`${message.role} > ${message.content[0].text.value}`);
+        const uploadResponse = await openai.files.create({
+            file: fs.createReadStream(fileName),
+            purpose: "assistants",
+        });
+
+        if (uploadResponse?.id) {
+            console.log(`[${apiName}] File uploaded successfully. File ID: ${uploadResponse.id}`);
+        } else {
+            console.error(`[${apiName}] Failed to get a valid file ID from OpenAI upload response.`);
+            return { status: false, error: "Failed to retrieve file ID from OpenAI." };
         }
-    } else {
-        console.log(run.status);
+
+        fs.unlinkSync(fileName);
+
+        // Return successful response
+        return { status: true, fileId: uploadResponse.id };
+
+    } catch (error) {
+        console.error(`[${apiName}] Error during file upload:`, error);
+
+        // Clean up the file if it exists in case of error
+        if (fs.existsSync(fileName)) {
+            fs.unlinkSync(fileName);
+            console.log(`[${apiName}] Temporary file cleaned up after error: ${fileName}`);
+        }
+
+        return { status: false, error: "File upload to OpenAI failed. Please check logs for details." };
     }
-    console.log(run);
 }
 
-// async function main() {
-//     const jsonObject = {
-//         key1: "value1",
-//         key2: "value2",
-//     };
-//     await writeFileToOpenAi(`userResponse${Date.now()}.json`, jsonObject);
-// }
+// Function to generate verdict
+async function generateVerdict(userResponseFileId, jdFileId, assist_id) {
+    const apiName = "GenerateVerdict";
+    console.log(`[${apiName}] Starting verdict generation...`);
 
-// Run the main function
-// main().catch(console.error);
+    try {
+        const thread = await openai.beta.threads.create({
+            messages: [
+                {
+                    role: "user",
+                    content:
+                        "Evaluate the candidate against the resume and the test result having the correct and incorrect answers provided by the candidate which is stored in the file. Provide a detailed assessment of the candidate, including: Strengths and weaknesses based on their answers. Alignment with the job requirements. Suggestions for areas of improvement, if needed. An overall recommendation on whether the candidate is suitable for further interview rounds based on your analysis with the resume, match for the resume against the job description, and the test results.",
+                    attachments: [
+                        { file_id: jdFileId, tools: [{ type: "file_search" }] },
+                        { file_id: userResponseFileId, tools: [{ type: "file_search" }] },
+                    ],
+                },
+            ],
+        });
+
+        if (!thread?.id) {
+            console.error(`[${apiName}] Failed to create thread.`);
+            return { status: false, error: "Failed to create thread for verdict generation." };
+        }
+
+        const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
+            assistant_id: assist_id,
+            instructions: "Do not add any source or markup artifacts or annotative markers information in the response. for example the artifacts are like 【<number>:<number>†<text>】. do not include the source which is from files of type file_search attached in the thread"
+        });
+
+        if (run?.status === 'completed') {
+            console.log(`[${apiName}] Thread run completed successfully.`);
+
+            const messages = await openai.beta.threads.messages.list(run.thread_id);
+
+            if (messages?.data?.length) {
+                for (const message of messages.data.reverse()) {
+                    if (message.role === 'assistant') {
+                        let result = message.content[0].text.value;
+                        const cleanedResponse = result.replace(/【\d+:\d+†[a-zA-Z]*】/g, '');
+                        console.log(`[${apiName}] Evaluation result generated by assistant.`, cleanedResponse);
+                        return {
+                            status: true,
+                            evaluationResult: cleanedResponse,
+                        };
+                    }
+                }
+            } else {
+                console.error(`[${apiName}] No messages found in the thread.`);
+                return { status: false, error: "No messages found in the thread after completion." };
+            }
+        } else {
+            console.error(`[${apiName}] Thread run not completed. Status: ${run?.status}`);
+            return { status: false, error: `Thread run status: ${run?.status || "Unknown error"}` };
+        }
+    } catch (error) {
+        console.error(`[${apiName}] Error occurred:`, error);
+        return { status: false, error: "An error occurred during verdict generation. Please check logs." };
+    }
+}
 
 module.exports = {
-    deleteFile,
     evaluateUserAnswers,
     generateVerdict,
-    uploadToOpenAI,
-    writeToFile,
-    writeFileToOpenAi
+    uploadToOpenAIFromBuffer
 }

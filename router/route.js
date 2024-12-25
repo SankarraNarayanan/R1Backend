@@ -30,8 +30,8 @@
  * Created Date: Friday, December 20th 2024, 5:06:42 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 24th 2024, 4:09:33 pm                               *
- * Modified By: Abirami                                                        *
+ * Last Modified: December 25th 2024, 6:27:28 pm                               *
+ * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -45,7 +45,7 @@ const cors = require('cors');
 let documentController = require('../controller/documentController');
 let linkController = require('../controller/linkController')
 let jdController = require('../controller/jdController');
-
+let quizController = require('../controller/quizController');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -56,4 +56,5 @@ module.exports = function (app) {
     app.route('/sendLink').get(linkController.sendLink, cors());
     app.route('/getListOfJD').get(jdController.getListOfJD, cors());
     app.route('/getAllResumesForJD').get(jdController.getAllResumesForJD, cors());
+    app.route('/evaluateAnswers').post(quizController.evaluateAnswers, cors());
 }
