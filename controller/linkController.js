@@ -26,12 +26,12 @@
  * IN WHOLE OR IN PART.                                                        *
  *                                                                             *
  * File: \controllers\linkController.js                                        *
- * Project: metricsbackend                                                     *
+ * Project: r1-backend                                                         *
  * Created Date: Friday, December 20th 2024, 4:23:25 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 23rd 2024, 7:48:26 pm                               *
- * Modified By: Renjith R T                                                    *
+ * Last Modified: December 25th 2024, 10:16:46 pm                              *
+ * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *

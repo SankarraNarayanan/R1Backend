@@ -30,7 +30,7 @@
  * Created Date: Monday, December 23rd 2024, 3:30:29 pm                        *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 8:30:56 pm                               *
+ * Last Modified: December 25th 2024, 8:42:36 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -167,8 +167,12 @@ async function generateVerdict(userResponseFileId, jdFileId, assist_id) {
 
         const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
             assistant_id: assist_id,
-            instructions: "Do not add any source or markup artifacts or annotative markers information in the response. for example the artifacts are like 【<number>:<number>†<text>】. do not include the source which is from files of type file_search attached in the thread"
+            instructions: `Please provide a concise and professional response to the thread prompt. 
+            Ensure the following:
+            - Avoid including any source references, markup artifacts, or annotative markers (e.g., Exclude any content sourced directly from attached files of type 'file_search'.
+            - Maintain a clear, structured, and professional tone throughout the response.`,
         });
+        
 
         if (run?.status === 'completed') {
             console.log(`[${apiName}] Thread run completed successfully.`);
