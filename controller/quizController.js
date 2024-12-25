@@ -43,7 +43,7 @@
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { PutCommand, DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
-const { verifyLink } = require("../utils/verifyLinkHelper");
+const { verifyLink, updateStatusAfterQnGenerated, updateStartEndTime } = require("../utils/verifyLinkHelper");
 const { questionGenerator } = require('../AiController/questionGenerator');
 const { fromSSO } = require('@aws-sdk/credential-providers');
 const dynamoDBClient = new DynamoDBClient({
@@ -134,7 +134,8 @@ const generateQuestions = async function (req,res){
         if(!putQuest.status){
             return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
         }
-        return res.status(200).json({ message: 'Question Genarated Succesfully'});
+        let changeStatus = await updateStatusAfterQnGenerated(jdId, resumeId);
+        return res.status(200).json({ message: 'Question Generated Succesfully'});
     } catch (error) {
         console.error("Error Generating question:", error);
         return res.status(500).json({ error: 'Error Generating question' });
@@ -197,25 +198,44 @@ const getQuestionsWithLinkId = async function (req,res){
         }
 
         let verify = await verifyLink(linkId);
+        console.log('verify', verify);
         if(!verify.status){
             console.log(`[ERROR][getQuestionsWithLinkId] Your Link is not active ${Date.now()}`);
             return res.status(400).json({ error: 'Your Link is not active' });
+        } else {
+            let questions = await getQuestionsWithResumeId(verify.data.resumeId);
+            if(!questions.status){
+                console.log(`[ERROR][getQuestionsWithLinkId] Your Error getting Questions ${Date.now()}`);
+                return res.status(400).json({ error: 'Error getting Questions' });
+            }
+            let questionsList = questions.data.questions;
+            if(!questionsList){
+                return res.status(200).json({ data: [] });
+            }
+            let questionsWithoutAnswer =  questionsList.map(question=>{
+                let {answer, ...questionWithoutAns} = question;
+                return questionWithoutAns;
+            });
+            
+            console.log(`[INFO][getQuestionsWithLinkId] Executed Successfully ${Date.now()}`);
+            let endTimeDetails= {};
+            if ( verify.data.status == 'ACTIVE') {
+                endTimeDetails = {
+                    startTime: verify.startTime,
+                    endTime: verify.endTime
+                }
+            } else if (verify.data.status == 'INPROGRESS') {
+                endTimeDetails = {
+                    startTime: verify.data.startTime,
+                    endTime: verify.data.endTime
+                }
+            }
+            return res.status(200).json({ 
+                date: Date.now(), 
+                questions: questionsWithoutAnswer, 
+                endTimeDetails: endTimeDetails
+            });
         }
-        let questions = await getQuestionsWithResumeId(verify.data.resumeId);
-        if(!questions.status){
-            console.log(`[ERROR][getQuestionsWithLinkId] Your Error getting Questions ${Date.now()}`);
-            return res.status(400).json({ error: 'Error getting Questions' });
-        }
-        let questionsList = questions.data.questions;
-        if(!questionsList){
-            return res.status(200).json({ data: [] });
-        }
-        let questionsWithoutAnswer =  questionsList.map(question=>{
-            let {answer, ...questionWithoutAns} = question;
-            return questionWithoutAns;
-        });
-        console.log(`[INFO][getQuestionsWithLinkId] Executed Successfully ${Date.now()}`);
-        return res.status(200).json({ questions: questionsWithoutAnswer, date: Date.now(), endTimeDetails: verify.data.endTimeDetails });
     } catch (error) {
         console.log('ERROR in getQuestionsWithLinkId ::',error)
         return res.status(500).json({ error: 'Error getting question', date: Date.now() });
