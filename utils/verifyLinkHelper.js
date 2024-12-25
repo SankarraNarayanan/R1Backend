@@ -59,8 +59,12 @@ async function updateStartEndTime(linkId){
             PK: { S: "LINK" }, 
             SK: { S: linkId }, 
         },
-        UpdateExpression: 'SET startTime = :newStartTime, endTime = :newEndTime, updatedAt = :newUpdatedAt',
+        UpdateExpression: 'SET #newStatus = :newStatus, startTime = :newStartTime, endTime = :newEndTime, updatedAt = :newUpdatedAt',
+        ExpressionAttributeNames: {
+            "#newStatus": "status",
+        },
         ExpressionAttributeValues: {
+            ':newStatus': { S : 'INPROGRESS'},
             ':newUpdatedAt': { N: Math.floor(Date.now() / 1000).toString() },
             ':newStartTime': { N: Math.floor(Date.now() / 1000).toString()},
             ':newEndTime': { N: Math.floor((Date.now() + 20 * 60 * 1000) / 1000).toString()}
@@ -72,6 +76,7 @@ async function updateStartEndTime(linkId){
         const command = new UpdateItemCommand(params);
         const response = await dynamoDBClient.send(command);
         console.log('Update succeeded:', response);
+        return response.Attributes;
     } catch (error) {
         console.error('Error updating item:', error);
     }
@@ -124,38 +129,54 @@ async function verifyLink(linkId){
         if (data.Item) {
             const returnData = unmarshall(data.Item);
             console.log('returnData: ', returnData);
-            if(returnData.status == "ACTIVE"){
+            if(returnData.status == "INPROGRESS") {
                 let currentTime = Math.floor(Date.now() / 1000);
                 if(returnData.endTime != 0 && returnData.endTime >= currentTime){
                     return {
                         status: true,
-                        data: returnData
+                        data: returnData,
                     };
                 }
-                if(returnData.expTime >= currentTime){
+                if (returnData.expTime >= currentTime) {
                     if(returnData.endTime == 0){
                         return {
                             status: true,
                             data: returnData
                         };
-                    }else if(returnData.endTime >= currentTime){
+                    } else if(returnData.endTime >= currentTime) {
                         return {
                             status: true,
                             data: returnData
                         };
-                    }else{
+                    } else {
                         markLinkInActive(linkId);
                         return {
                             status: false,
                         };
                     }
-                }
-                else{
+                } else {
                     return {
                         status: false,
                     };
                 }
-            }else{
+            } else if (returnData.status == "ACTIVE") {
+                let currentTime = Math.floor(Date.now() / 1000);
+                if (returnData.expTime >= currentTime) {
+                    let changeStartEndTime = await updateStartEndTime(linkId);
+                    return {
+                        status: true,
+                        data: returnData,
+                        startTime: parseInt(changeStartEndTime.startTime.N),
+                        endTime: parseInt(changeStartEndTime.endTime.N)
+                    };
+                } else {
+                    markLinkInActive(linkId);
+                    return {
+                        status: false,
+                    };
+                }
+
+            } else {
                 return {
                     status: false,
                 };
@@ -175,4 +196,36 @@ async function verifyLink(linkId){
     }
 }
 
-module.exports = {verifyLink}
+async function updateStatusAfterQnGenerated(jdId, resumeID){
+    const functionName = "updateStatusAfterQnGenerated";
+    const params = {
+        TableName: process.env.TABLENAME,
+        Key: {
+            PK: { S: jdId }, 
+            SK: { S: resumeID }, 
+        },
+        UpdateExpression: 'SET #status = :newStatus, updatedAt = :newUpdatedAt',
+        ExpressionAttributeNames: {
+            "#status": "status",
+          },
+        ExpressionAttributeValues: {
+            ':newUpdatedAt': { N: Math.floor(Date.now() / 1000).toString() },
+            ':newStatus': { S: 'QUESTIONS GENERATED' }, 
+        },
+        ReturnValues: 'UPDATED_NEW', 
+    };
+
+    try {
+        const command = new UpdateItemCommand(params);
+        const response = await dynamoDBClient.send(command);
+        console.log('Update succeeded:', response);
+    } catch (error) {
+        console.error('Error updating item:', error);
+    }
+}
+
+module.exports = { 
+    verifyLink,
+    updateStatusAfterQnGenerated,
+    updateStartEndTime
+}
