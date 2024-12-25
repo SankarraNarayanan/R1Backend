@@ -45,8 +45,10 @@ const cors = require('cors');
 let documentController = require('../controller/documentController');
 let linkController = require('../controller/linkController')
 let jdController = require('../controller/jdController');
+
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
+
 
 module.exports = function (app) {
     app.route('/uploadFile').post(upload.single('file'),documentController.uploadFile, cors());
