@@ -60,6 +60,7 @@ module.exports = function (app) {
 
     // quizControllers
     app.route('/getQuestions/:linkId').get(quizController.getQuestionsWithLinkId, cors());
+    // app.route('/startTest').post(quizController.startTest, cors());
     app.route('/submitQuestion').post(quizController.submitQuestion, cors());
     app.route('/generateQuestions').post(quizController.generateQuestions, cors());
     app.route('/evaluateAnswers').post(quizController.evaluateAnswers, cors());

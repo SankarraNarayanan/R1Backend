@@ -44,9 +44,11 @@
 require('dotenv').config();
 const { DynamoDBClient, GetItemCommand, UpdateItemCommand } = require("@aws-sdk/client-dynamodb");
 const { unmarshall } = require("@aws-sdk/util-dynamodb");
+const { fromSSO } = require('@aws-sdk/credential-providers');
 
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
+    //credentials: fromSSO({ profile: 'default' }),
   });
 
 async function updateStartEndTime(linkId){

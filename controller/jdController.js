@@ -43,9 +43,11 @@
 require("dotenv").config();
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { QueryCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { fromSSO } = require('@aws-sdk/credential-providers');
 
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
+    //credentials: fromSSO({ profile: 'default' }),
 });
 async function getListOfJD(listOfJDRequest, listOfJDResponse) {
     let entryAPITime = new Date();
