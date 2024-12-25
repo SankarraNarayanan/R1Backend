@@ -125,28 +125,43 @@ async function verifyLink(linkId){
             if(returnData.status == "ACTIVE"){
                 let currentTime = Math.floor(Date.now() / 1000);
                 if(returnData.endTime != 0 && returnData.endTime >= currentTime){
-                    return true;
+                    return {
+                        status: true,
+                        data: returnData
+                    };
                 }
                 if(returnData.expTime >= currentTime){
                     if(returnData.endTime == 0){
-                        return true;
+                        return {
+                            status: true,
+                            data: returnData
+                        };
                     }else if(returnData.endTime >= currentTime){
-                        return true;
+                        return {
+                            status: true,
+                            data: returnData
+                        };
                     }else{
                         markLinkInActive(linkId);
-                        return false;
+                        return {
+                            status: false,
+                        };
                     }
                 }
                 else{
-                    return false;
+                    return {
+                        status: false,
+                    };
                 }
             }else{
-                return false;
+                return {
+                    status: false,
+                };
             }
         } else {
             console.log('Error in getting Link details');
             return {
-                status: false
+                status: false,
             };
         }
     } catch (error) {
@@ -158,3 +173,5 @@ async function verifyLink(linkId){
     }
 }
 updateStartEndTime('tcSp2m182gfkAJhEhf1G9Y');
+
+module.exports = {verifyLink}
