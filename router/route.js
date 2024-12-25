@@ -30,8 +30,8 @@
  * Created Date: Friday, December 20th 2024, 5:06:42 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 24th 2024, 4:09:33 pm                               *
- * Modified By: Abirami                                                        *
+ * Last Modified: December 25th 2024, 8:26:30 pm                               *
+ * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -62,4 +62,5 @@ module.exports = function (app) {
     app.route('/getQuestions/:linkId').get(quizController.getQuestionsWithLinkId, cors());
     app.route('/submitQuestion').post(quizController.submitQuestion, cors());
     app.route('/generateQuestions').post(quizController.generateQuestions, cors());
+    app.route('/evaluateAnswers').post(quizController.evaluateAnswers, cors());
 }
