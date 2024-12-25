@@ -25,12 +25,12 @@
  * CONTENTS, OR TO MANUFACTURE, USE, OR SELL ANYTHING THAT IT MAY DESCRIBE,    *
  * IN WHOLE OR IN PART.                                                        *
  *                                                                             *
- * File: \AiController\questionGenerator.js                                    *
+ * File: \AiController\resumeProcessor.js                                      *
  * Project: r1-backend                                                         *
- * Created Date: Tuesday, December 24th 2024, 4:22:01 pm                       *
+ * Created Date: Tuesday, December 24th 2024, 7:27:20 pm                       *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 24th 2024, 7:35:23 pm                               *
+ * Last Modified: December 24th 2024, 7:33:05 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -44,72 +44,53 @@ require('dotenv').config();
 const OpenAI = require('openai');
 require('dotenv').config();
 const fs = require('fs');
-
+const { extractJsonFromText } = require('./questionGenerator');
 const openai = new OpenAI({
     apiKey: process.env.API_KEY
 });
 
-function extractJsonFromText(text) {
-    // Regular expression to identify and remove the code block markers
-    const regex = /```json([\s\S]*?)```/g;
-    
-    // Check if there is any match with code block markers and remove them
-    const match = text.match(regex);
-    
-    if (match) {
-        // Extract the JSON content from the match
-        const jsonContent = match[0].replace(/```json|```/g, "").trim();
-        return jsonContent;
-    }
-    
-    return text.trim(); // Return the original text if no code block markers are found
-}
-
-async function questionGenerator(resumeVectorId, jdVecotorId) {
-    let assistantId = process.env.QUESTION_GENERATOR_ASSISTANT_ID;
+async function resumeProcessor(resumeVectorId) {
+    let assistantId = process.env.RESUME_EXTRACTOR_ASSISTANT_ID;
     try {
-        console.log('Generating Questions ....');
         const thread = await openai.beta.threads.create({
             messages: [
                 {
                     role: "user",
                     content:
-                        "Evaluate the candidate's resume against the provided Job Description. Identify key skills, technologies, and competencies required for the role. Generate 10 technical and scenario-based multiple-choice questions that align with the JD. These questions should: Test the candidate's technical expertise and problem-solving abilities. Include realistic scenarios to gauge the candidate’s ability to handle role-specific challenges. Cover both breadth and depth of knowledge relevant to the role. Ensure the questions, options and answers are presented in the following JSON format: { 'questions': [ { 'id': 'q1', 'question': 'Insert question here.', 'choices': { 'a': 'Option A', 'b': 'Option B', 'c': 'Option C', 'd': 'Option D' }, 'answer': 'a' }, { 'id': 'q2', 'question': 'Insert question here.', 'choices': { 'a': 'Option A', 'b': 'Option B', 'c': 'Option C', 'd': 'Option D' }, 'answer': 'c' } // Add remaining questions here ] } ",
-                    attachments: [
-                        { file_id: resumeVectorId, tools: [{ type: "file_search" }] },
-                        { file_id: jdVecotorId, tools: [{ type: "file_search" }] }],
+                        "Read the resume and provide the candidate details in the json format only. The JSON output must strictly follow this format: {'name': '<Full Name>', 'email': '<Email Address>', 'skills': ['<Skill 1>', '<Skill 2>', '<Skill 3>', '...'], 'phonenumber': '<Phone Number>'}",
+
+                    attachments: [{ file_id: resumeVectorId, tools: [{ type: "file_search" }] }],
                 },
             ],
         });
+
         let run = await openai.beta.threads.runs.createAndPoll(
             thread.id,
             {
                 assistant_id: assistantId,
-                instructions: "Generate questions and send it in the json format only"
+                instructions: "Read the resume and provide the candidate details in the json format only"
             }
         );
-        console.log('Questions Generated successfully');
+
         if (run.status === 'completed') {
             const messages = await openai.beta.threads.messages.list(
                 run.thread_id
             );
-            for (const message of messages.data) {
-                console.log(`${ message.role } > ${ message.content[0].text.value }`);
-                let aiMessage =  message.content[0].text.value;
-                let extractedMessage = extractJsonFromText(aiMessage);
-                console.log('extractedMessage', extractedMessage);
+            for (const message of messages.data.reverse()) {
+                console.log(`${message.role} > ${message.content[0].text.value}`);
+                let extractedMessage = extractJsonFromText(message.content[0].text.value);
                 return extractedMessage;
             }
         } else {
             console.log(run.status);
         }
+        console.log(run);
     } catch (error) {
-        console.log('error in generating querstions ', error);
+        console.log('error in extracting content from resume', error);
         return { status: false, error: error }
     }
-
 }
+
 module.exports = {
-    extractJsonFromText,
-    questionGenerator
+    resumeProcessor
 };
