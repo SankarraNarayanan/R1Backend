@@ -30,8 +30,8 @@
  * Created Date: Friday, December 20th 2024, 5:10:27 pm                        *
  * Author: Abirami <abirami@codestax.ai>                                       *
  * -----                                                                       *
- * Last Modified: December 24th 2024, 6:05:34 pm                               *
- * Modified By: Abirami                                                        *
+ * Last Modified: December 25th 2024, 3:40:18 pm                               *
+ * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -41,13 +41,13 @@
  * --------------------------------------------------------------------------- *
  */
 require("dotenv").config();
-const {DynamoDBClient} = require('@aws-sdk/client-dynamodb');
-const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { QueryCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
-  });
-exports.getListOfJD = async function (listOfJDRequest, listOfJDResponse) {
+});
+async function getListOfJD(listOfJDRequest, listOfJDResponse) {
     let entryAPITime = new Date();
     let apiName = 'Get List of JDs';
     console.log(`[${apiName}] API entry time : `, entryAPITime);
@@ -67,7 +67,7 @@ exports.getListOfJD = async function (listOfJDRequest, listOfJDResponse) {
                 message: 'No JDs are available.',
                 data: []
             });
-        } else if (getListOfJDResponse?.Items?.length > 0){
+        } else if (getListOfJDResponse?.Items?.length > 0) {
             console.log(`[${apiName}][INFO] Getting List of JDs is successful`);
             return listOfJDResponse.status(200).send({
                 message: 'List of JDs have been fetched Successfully.',
@@ -89,8 +89,7 @@ exports.getListOfJD = async function (listOfJDRequest, listOfJDResponse) {
     }
 };
 
-
-exports.getAllResumesForJD = async function (listOfResumeRequest, listOfResumeResponse) {
+async function getAllResumesForJD(listOfResumeRequest, listOfResumeResponse) {
     let entryAPITime = new Date();
     let apiName = 'Get List of Resumes for JD';
     console.log(`[${apiName}] API entry time : `, entryAPITime);
@@ -131,3 +130,39 @@ exports.getAllResumesForJD = async function (listOfResumeRequest, listOfResumeRe
         });
     }
 };
+
+async function getJDDetails(jdId) {
+    try {
+        if (!jdId) {
+            return {
+                status: false,
+                message: 'jdId is required'
+            };
+        }
+
+        const command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+                PK: 'JD',
+                SK: jdId,
+            },
+        });
+
+        let response = await dynamoDBClient.send(command);
+        return {
+            status: true,
+            data: response.Item,
+            message: 'JD fetched successfully'
+        };
+    } catch (error) {
+        console.error("Error getting jd:", error);
+        return {
+            status: false,
+            message: 'Error getting jd'
+        }
+    }
+}
+
+module.exports = {
+    getJDDetails, getListOfJD, getAllResumesForJD
+}
