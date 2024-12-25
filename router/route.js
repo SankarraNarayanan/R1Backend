@@ -46,8 +46,12 @@ let documentController = require('../controller/documentController');
 let linkController = require('../controller/linkController')
 let jdController = require('../controller/jdController');
 
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
+
+
 module.exports = function (app) {
-    app.route('/writePresignedUrl').get(documentController.getPresignedUrlWrite, cors());
+    app.route('/uploadFile').post(upload.single('file'),documentController.uploadFile, cors());
     app.route('/readPresignedUrl').get(documentController.getPresignedUrlRead, cors());
     app.route('/sendLink').get(linkController.sendLink, cors());
     app.route('/getListOfJD').get(jdController.getListOfJD, cors());
