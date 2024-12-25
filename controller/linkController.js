@@ -26,12 +26,12 @@
  * IN WHOLE OR IN PART.                                                        *
  *                                                                             *
  * File: \controllers\linkController.js                                        *
- * Project: metricsbackend                                                     *
+ * Project: r1-backend                                                         *
  * Created Date: Friday, December 20th 2024, 4:23:25 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 23rd 2024, 7:48:26 pm                               *
- * Modified By: Renjith R T                                                    *
+ * Last Modified: December 25th 2024, 11:24:40 pm                              *
+ * Modified By: Muthuram                                                       *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -49,6 +49,9 @@ const {
   DynamoDBClient,
   TransactWriteItemsCommand,
 } = require("@aws-sdk/client-dynamodb");
+const {
+  QueryCommand, TransactWriteCommand, TransactGetCommand, ScanCommand, DeleteCommand
+} = require('@aws-sdk/lib-dynamodb');
 const { marshall } = require("@aws-sdk/util-dynamodb");
 const responseController = require("../utils/responseHelper");
 const { addMessageToSQS } = require("../utils/sqsHelper");
@@ -67,10 +70,8 @@ function pushToSQS(email, link) {
 }
 
 const sendLink = async function (req, res) {
-  console.log(res);
   const functionName = "Link Generation Api";
-  const body = JSON.parse(req.body);
-  console.log("body: ", body);
+  const body = req.body;
 
   const userDetails = body.userDetails;
   const jdId = body.jdId;
@@ -88,17 +89,17 @@ const sendLink = async function (req, res) {
       transactItems.push({
         Update: {
           TableName: process.env.TABLENAME,
-          Key: marshall({ PK: jdId, SK: e.resumeId }),
+          Key: { PK: jdId, SK: e.resumeId || '' },
           UpdateExpression:
             "SET linkId = :newLinkId, updatedAt = :newUpdatedAt, #status = :newStatus",
           ExpressionAttributeNames: {
             "#status": "status",
           },
-          ExpressionAttributeValues: marshall({
+          ExpressionAttributeValues: {
             ":newLinkId": linkUUID,
             ":newUpdatedAt": currentTime,
             ":newStatus": "LINK_GENERATED",
-          }),
+          },
         },
       });
 
@@ -106,10 +107,10 @@ const sendLink = async function (req, res) {
       transactItems.push({
         Put: {
           TableName: process.env.TABLENAME,
-          Item: marshall({
+          Item: {
             PK: "LINK",
             SK: linkUUID,
-            resumeId: e.resumeId,
+            resumeId: e.resumeId || '',
             jdId: jdId,
             expTime: expiryTime,
             startTime: 0,
@@ -117,33 +118,34 @@ const sendLink = async function (req, res) {
             updatedAt: currentTime,
             status: "ACTIVE",
             websocketId: "",
-          }),
+          },
         },
       });
+      console.log('1', transactItems[1].Put)
       userLinkList.push({
-        email: e.emailId,
+        email: e.emailId || '',
         link: `https://${process.env.CANDIDATE_PANEL_CLOUDFRONT_URL}?linkID=${linkUUID}`,
       });
+      console.log('userLinkList[0', userLinkList[0])
     });
 
-    const command = new TransactWriteItemsCommand({
+    const command = new TransactWriteCommand({
       TransactItems: transactItems,
     });
 
     const response = await dynamoDBClient.send(command);
-    console.log("Transaction succeeded:", response);
     for (let emailLink of userLinkList) {
       pushToSQS(emailLink.email, emailLink.link);
     }
     // pushToSQS(userLinkList);
-    return responseController.defineResponse(200, {
-      message: "Links generated successfully",
-    });
+    return res.send({
+      message: "Link generated successfully",
+    }).status(200);
   } catch (error) {
     console.error("Transaction failed:", error);
-    return responseController.defineResponse(500, {
-      message: "Internal Error",
-    });
+    return res.send({
+      message: "Server error",
+    }).status(500);
   }
 };
 

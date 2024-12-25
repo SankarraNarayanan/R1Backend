@@ -134,7 +134,7 @@ const generateQuestions = async function (req,res){
         if(!putQuest.status){
             return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
         }
-        return res.status(200).json({ messsage: 'Question Genarated Succesfully'});
+        return res.status(200).json({ message: 'Question Genarated Succesfully'});
     } catch (error) {
         console.error("Error Generating question:", error);
         return res.status(500).json({ error: 'Error Generating question' });

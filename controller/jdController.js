@@ -30,8 +30,8 @@
  * Created Date: Friday, December 20th 2024, 5:10:27 pm                        *
  * Author: Abirami <abirami@codestax.ai>                                       *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 3:40:18 pm                               *
- * Modified By: Sankarra Narayanan G                                           *
+ * Last Modified: December 25th 2024, 10:48:47 pm                              *
+ * Modified By: Muthuram                                                       *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -95,7 +95,7 @@ async function getAllResumesForJD(listOfResumeRequest, listOfResumeResponse) {
     let entryAPITime = new Date();
     let apiName = 'Get List of Resumes for JD';
     console.log(`[${apiName}] API entry time : `, entryAPITime);
-    let JDId = listOfResumeRequest.body.JDId;
+    let JDId = listOfResumeRequest.query.JDId;
     try {
         let params = {
             TableName: process.env.TABLENAME,

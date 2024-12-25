@@ -30,8 +30,8 @@
  * Created Date: Friday, December 20th 2024, 5:06:42 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 8:32:34 pm                               *
- * Modified By: Sankarra Narayanan G                                           *
+ * Last Modified: December 25th 2024, 10:55:10 pm                              *
+ * Modified By: Muthuram                                                       *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -54,7 +54,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 module.exports = function (app) {
     app.route('/uploadFile').post(upload.single('file'),documentController.uploadFile, cors());
     app.route('/readPresignedUrl').get(documentController.getPresignedUrlRead, cors());
-    app.route('/sendLink').get(linkController.sendLink, cors());
+    app.route('/sendLink').post(linkController.sendLink, cors());
     app.route('/getListOfJD').get(jdController.getListOfJD, cors());
     app.route('/getAllResumesForJD').get(jdController.getAllResumesForJD, cors());
 

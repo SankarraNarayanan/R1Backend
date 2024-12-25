@@ -30,7 +30,7 @@
  * Created Date: Wednesday, December 25th 2024, 12:26:19 pm                    *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 8:10:45 pm                               *
+ * Last Modified: December 25th 2024, 10:42:15 pm                              *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -148,32 +148,42 @@ const uploadFile = async function (req, res) {
         const type = req.body.type;
         let requestBody = req.body;
         const maxFileSize = 10 * 1024 * 1024;
+
+        // Log start of the function
+        console.log(`[INFO] [${functionName}] Started processing upload`);
+
         if (!file) {
+            console.log(`[ERROR] [${functionName}] File is missing`);
             return res.status(400).json({ error: 'File is required.' });
         }
+
         if (file.size > maxFileSize) {
-            console.log(`[INFO]  [${functionName}] Exceeded file size limit`);
+            console.log(`[ERROR] [${functionName}] Exceeded file size limit. File size: ${file.size} bytes`);
             return res.status(400).json({ message: "Exceeded file size limit" });
         }
 
         if (!["resume", "jobDescription"].includes(type)) {
-            console.log(`[INFO]  [${functionName}] Invalid type`);
+            console.log(`[ERROR] [${functionName}] Invalid file type: ${type}`);
             return res.status(400).json({ message: "We only accept resume or jobDescription" });
         }
 
         if (type == "jobDescription") {
             if (!requestBody.vacancies || !requestBody.adminId) {
+                console.log(`[ERROR] [${functionName}] Missing adminId or vacancies in request body`);
                 return res.status(400).json({ error: 'adminId and vacancies are required' });
             }
-        }
-        else {
+        } else {
             if (!requestBody.jdId || !requestBody.emailId) {
-                return res.status(400).json({ error: 'Job Description Id and emailId is required' });
+                console.log(`[ERROR] [${functionName}] Missing jdId or emailId in request body`);
+                return res.status(400).json({ error: 'Job Description Id and emailId are required' });
             }
         }
 
         let fileUUId = uuidv4();
         const filePath = `${type}/${fileUUId}.pdf`;
+
+        // Log the file upload details
+        console.log(`[INFO] [${functionName}] Uploading file to S3. File UUID: ${fileUUId}, File path: ${filePath}`);
 
         const createParams = {
             Bucket: process.env.S3_BUCKETNAME,
@@ -184,23 +194,33 @@ const uploadFile = async function (req, res) {
 
         await s3Client.send(new PutObjectCommand(createParams));
 
+        console.log(`[INFO] [${functionName}] File successfully uploaded to S3`);
+
         let vectorUpload = await uploadFileToOpenAi(file);
         if (!vectorUpload.status) {
+            console.log(`[ERROR] [${functionName}] Error uploading file to vector store. File UUID: ${fileUUId}`);
             return res.status(400).json({ message: "Error uploading file to vector Store" });
         }
 
-        let fileDetails ={
+        console.log(`[INFO] [${functionName}] File uploaded to vector store. File ID: ${vectorUpload.fileId}, Vector ID: ${vectorUpload.vectorId}`);
+
+        let fileDetails = {
             fileUUId,
             filePath,
-            fileName:file.originalname,
+            fileName: file.originalname,
             ...vectorUpload
-        }
+        };
 
-        let dynamoResponse = await createRecordInDynamoDB(type,requestBody,fileDetails);
+        console.log(`[INFO] [${functionName}] Creating record in DynamoDB`);
 
-        if(!dynamoResponse.status){
+        let dynamoResponse = await createRecordInDynamoDB(type, requestBody, fileDetails);
+
+        if (!dynamoResponse.status) {
+            console.log(`[ERROR] [${functionName}] Error creating record in DynamoDB. File UUID: ${fileUUId}`);
             return res.status(400).json({ message: "Error uploading file to vector Store" });
         }
+
+        console.log(`[INFO] [${functionName}] Record successfully created in DynamoDB`);
 
         return res.status(200).json({
             message: "File successfully uploaded",
@@ -213,10 +233,11 @@ const uploadFile = async function (req, res) {
             },
         });
     } catch (error) {
-        console.error(`[ERROR]  [${functionName}] Api Catch Error`, error);
+        console.error(`[ERROR] [${functionName}] Api Catch Error`, error);
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 const getPresignedUrlRead = async function (req, res) {
     const functionName = 'getPresignedUrlRead Api';
