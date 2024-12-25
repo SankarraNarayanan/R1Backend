@@ -45,6 +45,49 @@ const putQuestions = async function(resumeId,questions){
     }
 };
 
+const submitQuestion = async function(req,res){
+    try {
+        let { linkId,questionId,selectedOptionId } = req.body;
+        if(!linkId || !questionId || !selectedOptionId){
+            return res.status(400).json({ error: 'Missing Rquired Params linkId, questionId selectedOptionId' });
+        }
+
+        let verify = await verifyLink(linkId);
+        if(!verify.status){
+            return res.status(400).json({ error: 'Your Link is not active' });
+        }
+
+        let resumeId = verify.data.resumeId;
+        const command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+              PK: resumeId,
+              SK: "USER_ANSWERS",
+            },
+        });
+
+        let answerResponse = await docClient.send(command);
+        const item = answerResponse.Item || {}; 
+        const updatedAnswers = item.answers || {}; 
+        updatedAnswers[questionId] = selectedOptionId;
+
+        const putCommand = new PutCommand({
+            TableName: process.env.TABLENAME,
+            Item: {
+                PK: resumeId,
+                SK: "USER_ANSWERS",
+                answers: updatedAnswers, 
+            },
+        });
+
+        await docClient.send(putCommand);
+        return res.status(200).json({ messsage: 'Question Submitted Succesfully' });
+    } catch (error) {
+        console.error("Error Submiting question:", error);
+        return res.status(500).json({ error: 'Error Submiting question' });
+    }
+}
+
 const getQuestionsWithLinkId = async function (req,res){
     try {
         let { linkId } = req.params;
@@ -108,4 +151,4 @@ const getQuestionsWithResumeId = async function(resumeId){
     }
 }
 
-module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId};
+module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion};

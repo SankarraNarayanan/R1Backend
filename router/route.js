@@ -58,4 +58,5 @@ module.exports = function (app) {
     app.route('/getListOfJD').get(jdController.getListOfJD, cors());
     app.route('/getAllResumesForJD').get(jdController.getAllResumesForJD, cors());
     app.route('/getQuestions/:linkId').get(quizController.getQuestionsWithLinkId, cors());
+    app.route('/submitQuestion').post(quizController.submitQuestion, cors());
 }
