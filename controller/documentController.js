@@ -61,6 +61,7 @@ const createRecordInDynamoDB = async function (type, requestBody, fileDetails) {
                     filePath: fileDetails.filePath,
                     vectorId: fileDetails.vectorId,
                     fileId: fileDetails.fileId,
+                    fileName:fileDetails.fileName,
                     jdId:fileUUID,
                     vacancies: requestBody.vacancies,
                     createdBy: requestBody.adminId, 
@@ -78,7 +79,8 @@ const createRecordInDynamoDB = async function (type, requestBody, fileDetails) {
                     vectorId: fileDetails.vectorId,
                     resumeId: fileUUID,
                     fileId: fileDetails.fileId,
-                    emailId : requestBody.jdId,
+                    fileName:fileDetails.fileName,
+                    emailId : requestBody.emailId,
                     status : "UPLOADED"
                 },
             }
@@ -148,6 +150,7 @@ const uploadFile = async function (req, res) {
         let fileDetails ={
             fileUUId,
             filePath,
+            fileName:file.originalname,
             ...vectorUpload
         }
 
