@@ -30,7 +30,7 @@
  * Created Date: Wednesday, December 25th 2024, 8:23:44 pm                     *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 26th 2024, 2:51:42 pm                               *
+ * Last Modified: December 26th 2024, 3:49:40 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -152,24 +152,29 @@ const generateQuestions = async function (req,res){
             return evaluateAnswersResponse.status(400).send(uploadResponse);
         }
         res.status(200).json({ message: 'Question Generated Succesfully'});
+        console.log('sampleQuestion', sampleQuestion)
         let geneartedQuestions = await questionGenerator(resumeDetails.fileId,jdDetails.fileId);
         let parsedQuestions;
+        let isAIQUestion = true;
         try {
             parsedQuestions = JSON.parse(geneartedQuestions);
             
         } catch (error) {
-            console.log('Falback to sample question');
+            console.log('Falback to sample question', sampleQuestion.questions);
             let putQuest = await putQuestions(resumeId, sampleQuestion.questions);
             if(!putQuest.status){
                 return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
             }
             let changeStatus = await updateStatusAfterQnGenerated(jdId, resumeId);
+            isAIQUestion = false;
         }
-        let putQuest = await putQuestions(resumeId,parsedQuestions.questions);
-        if(!putQuest.status){
-            return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
+        if(isAIQUestion){
+            let putQuest = await putQuestions(resumeId,parsedQuestions.questions);
+            if(!putQuest.status){
+                return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
+            }
+            let changeStatus = await updateStatusAfterQnGenerated(jdId, resumeId);
         }
-        let changeStatus = await updateStatusAfterQnGenerated(jdId, resumeId);
     } catch (error) {
         console.error("Error Generating question:", error);
         return res.status(500).json({ error: 'Error Generating question' });
