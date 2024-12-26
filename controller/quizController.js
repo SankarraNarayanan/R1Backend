@@ -30,7 +30,7 @@
  * Created Date: Wednesday, December 25th 2024, 8:23:44 pm                     *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 26th 2024, 1:32:00 pm                               *
+ * Last Modified: December 26th 2024, 2:51:42 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -46,6 +46,7 @@ const { PutCommand, DynamoDBDocumentClient, GetCommand, TransactWriteCommand, Up
 const { verifyLink, updateStatusAfterQnGenerated, updateStartEndTime } = require("../utils/verifyLinkHelper");
 const { questionGenerator } = require('../AiController/questionGenerator');
 const { fromSSO } = require('@aws-sdk/credential-providers');
+const sampleQuestion = require('./sampleQuestion.json');
 const {
     DynamoDBClient,
     TransactWriteItemsCommand,
@@ -129,17 +130,46 @@ const generateQuestions = async function (req,res){
         if(!resumeDetails.fileId){
             return res.status(400).json({ error: 'Resume file id missing.' });
         }
+        let parmas = {
+            TableName: process.env.TABLENAME,
+            Key: {
+                PK: jdId,
+                SK: resumeId,
+            },
+            UpdateExpression: "SET updatedAt = :newUpdatedAt, #status = :newStatus",
+            ExpressionAttributeNames: {
+                "#status": "status",
+            },
+            ExpressionAttributeValues: {
+                ":newUpdatedAt": Date.now(),
+                ":newStatus": "IN PROGRESS",
+            },
+            ReturnValues: "ALL_NEW",
+        };
+        let updateSummaryStatus = await updateDynamoDbRecord(parmas);
+        if (!updateSummaryStatus.status) {
+            console.log(`[${apiName}] Failed to update status`);
+            return evaluateAnswersResponse.status(400).send(uploadResponse);
+        }
+        res.status(200).json({ message: 'Question Generated Succesfully'});
         let geneartedQuestions = await questionGenerator(resumeDetails.fileId,jdDetails.fileId);
-        let parsedQuestions = JSON.parse(geneartedQuestions);
-        if(!parsedQuestions.questions){
-            return res.status(400).json({ error: 'Error generating Questions' });
+        let parsedQuestions;
+        try {
+            parsedQuestions = JSON.parse(geneartedQuestions);
+            
+        } catch (error) {
+            console.log('Falback to sample question');
+            let putQuest = await putQuestions(resumeId, sampleQuestion.questions);
+            if(!putQuest.status){
+                return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
+            }
+            let changeStatus = await updateStatusAfterQnGenerated(jdId, resumeId);
         }
         let putQuest = await putQuestions(resumeId,parsedQuestions.questions);
         if(!putQuest.status){
             return res.status(400).json({ error: 'Error Putting Questions in DynamoDb.' });
         }
         let changeStatus = await updateStatusAfterQnGenerated(jdId, resumeId);
-        return res.status(200).json({ message: 'Question Generated Succesfully'});
     } catch (error) {
         console.error("Error Generating question:", error);
         return res.status(500).json({ error: 'Error Generating question' });
@@ -395,11 +425,7 @@ const putEvaluationResult = async function (resumeId, evaluationResult, jdId) {
 };
 
 async function updateDynamoDbRecord(params) {
-    const tableName = process.env.TABLENAME;
 
-    if (!jdId || !resumeId) {
-        throw new Error("Both jdId (PK) and resumeId (SK) are required.");
-    }
     try {
         const command = new UpdateCommand(params);
         const result = await docClient.send(command);

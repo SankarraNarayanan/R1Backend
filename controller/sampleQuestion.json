@@ -1,0 +1,117 @@
+{
+  "PK": "dbe3d159-2e3e-40b9-8925-2a5680550d06",
+  "SK": "QUESTIONS",
+  "createdAt": 1735147451,
+  "questions": [
+    {
+      "answer": "c",
+      "choices": {
+        "a": "Virtual DOM",
+        "b": "ComponentDidMount()",
+        "c": "React Hooks",
+        "d": "JSX"
+      },
+      "id": "q1",
+      "question": "You need to develop a user interface component in React that updates live as the data changes. Which feature of React might you utilize most effectively?"
+    },
+    {
+      "answer": "b",
+      "choices": {
+        "a": "Increasing the number of synchronous tasks",
+        "b": "Using the async/await feature",
+        "c": "Minimizing use of callbacks",
+        "d": "Reducing the heap memory allocation"
+      },
+      "id": "q2",
+      "question": "When optimizing a Node.js application, which of the following actions could improve performance related to asynchronous tasks?"
+    },
+    {
+      "answer": "b",
+      "choices": {
+        "a": "Rewrite the JavaScript code",
+        "b": "Optimize the images and resources",
+        "c": "Change the font styles",
+        "d": "Increase server bandwidth"
+      },
+      "id": "q3",
+      "question": "You are tasked with fixing a slow-loading HTML/CSS webpage. Which of the following should be your first step?"
+    },
+    {
+      "answer": "d",
+      "choices": {
+        "a": "REMOVE DUPLICATES",
+        "b": "DELETE",
+        "c": "UNIQUE",
+        "d": "DISTINCT"
+      },
+      "id": "q4",
+      "question": "In SQL, what command would you use to remove duplicates from the result of a select query?"
+    },
+    {
+      "answer": "b",
+      "choices": {
+        "a": "Store API keys in your code",
+        "b": "Use environment variables for sensitive data",
+        "c": "Hard-code the credentials",
+        "d": "All of the above"
+      },
+      "id": "q5",
+      "question": "When integrating third-party services in a Node.js backend, what is a best practice for security?"
+    },
+    {
+      "answer": "a",
+      "choices": {
+        "a": "By using React.memo() for functional components",
+        "b": "Using setState() frequently",
+        "c": "Re-rendering all components periodically",
+        "d": "None of the above"
+      },
+      "id": "q6",
+      "question": "In implementing a new feature using React, how would you ensure that the feature only re-renders when necessary?"
+    },
+    {
+      "answer": "b",
+      "choices": {
+        "a": "To create server-side rendered websites",
+        "b": "To serve static files and create web applications",
+        "c": "To add plugins to Node.js",
+        "d": "To perform data analytics tasks"
+      },
+      "id": "q7",
+      "question": "What is the primary use of the Express framework in Node.js?"
+    },
+    {
+      "answer": "d",
+      "choices": {
+        "a": "ORDER BY",
+        "b": "GROUP BY",
+        "c": "HAVING",
+        "d": "WHERE"
+      },
+      "id": "q8",
+      "question": "What SQL clause is used to filter records before group by operation?"
+    },
+    {
+      "answer": "b",
+      "choices": {
+        "a": "Bootstrap",
+        "b": "Tailwind CSS",
+        "c": "Foundation",
+        "d": "Materialize"
+      },
+      "id": "q9",
+      "question": "When developing a responsive web application, what CSS framework might you choose for best practices in modularity and customizability?"
+    },
+    {
+      "answer": "c",
+      "choices": {
+        "a": "AJAX",
+        "b": "jQuery",
+        "c": "WebSockets",
+        "d": "React State"
+      },
+      "id": "q10",
+      "question": "If you need to implement a feature that allows users to see changes in real-time on a web page, which technology would be most appropriate?"
+    }
+  ]
+}
