@@ -30,8 +30,8 @@
  * Created Date: Friday, December 20th 2024, 4:23:25 pm                        *
  * Author: Renjith R T <renjith@codestax.ai>                                   *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 11:24:40 pm                              *
- * Modified By: Muthuram                                                       *
+ * Last Modified: December 26th 2024, 2:40:21 pm                               *
+ * Modified By: Renjith R T                                                    *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
  *     will eventually be written in JavaScript !!                             *
@@ -71,8 +71,7 @@ function pushToSQS(email, link) {
 
 const sendLink = async function (req, res) {
   const functionName = "Link Generation Api";
-  const body = req.body;
-
+  const body = JSON.parse(req.body);
   const userDetails = body.userDetails;
   const jdId = body.jdId;
   let userLinkList = [];
@@ -137,15 +136,14 @@ const sendLink = async function (req, res) {
     for (let emailLink of userLinkList) {
       pushToSQS(emailLink.email, emailLink.link);
     }
-    // pushToSQS(userLinkList);
-    return res.send({
-      message: "Link generated successfully",
-    }).status(200);
+    return responseController.defineResponse(200, {
+      message: "Links generated successfully",
+    });
   } catch (error) {
     console.error("Transaction failed:", error);
-    return res.send({
-      message: "Server error",
-    }).status(500);
+    return responseController.defineResponse(500, {
+      message: "Server Error",
+    });
   }
 };
 
