@@ -30,7 +30,7 @@
  * Created Date: Wednesday, December 25th 2024, 8:23:44 pm                     *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 26th 2024, 12:32:57 pm                              *
+ * Last Modified: December 26th 2024, 1:32:00 pm                               *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -41,11 +41,15 @@
  * --------------------------------------------------------------------------- *
  */
 
-const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { PutCommand, DynamoDBDocumentClient, GetCommand, TransactWriteCommand } = require("@aws-sdk/lib-dynamodb");
+
+const { PutCommand, DynamoDBDocumentClient, GetCommand, TransactWriteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 const { verifyLink, updateStatusAfterQnGenerated, updateStartEndTime } = require("../utils/verifyLinkHelper");
 const { questionGenerator } = require('../AiController/questionGenerator');
 const { fromSSO } = require('@aws-sdk/credential-providers');
+const {
+    DynamoDBClient,
+    TransactWriteItemsCommand,
+  } = require("@aws-sdk/client-dynamodb");
 const dynamoDBClient = new DynamoDBClient({
     region: process.env.AWS_REGION,
     //credentials: fromSSO({ profile: 'default' }),
@@ -390,7 +394,42 @@ const putEvaluationResult = async function (resumeId, evaluationResult, jdId) {
     }
 };
 
+async function updateDynamoDbRecord(jdId, resumeId) {
+    const tableName = process.env.TABLENAME;
 
+    if (!jdId || !resumeId) {
+        throw new Error("Both jdId (PK) and resumeId (SK) are required.");
+    }
+
+    const params = {
+        TableName: tableName,
+        Key: {
+            PK: jdId,
+            SK: resumeId,
+        },
+        UpdateExpression: "SET updatedAt = :newUpdatedAt, #status = :newStatus",
+        ExpressionAttributeNames: {
+            "#status": "status",
+        },
+        ExpressionAttributeValues: {
+            ":newUpdatedAt": Date.now(),
+            ":newStatus": "COMPLETED",
+        },
+        ReturnValues: "ALL_NEW",
+    };
+
+    try {
+        const command = new UpdateCommand(params);
+        const result = await docClient.send(command);
+        return { status: true, message: "Updated status successfully", data: result.Attributes };
+    } catch (error) {
+        console.error("Update failed:", error.message);
+        if (error.name === "ValidationException") {
+            console.error("Validation error: Ensure PK and SK match the table schema.");
+        }
+        throw new Error("Failed to update DynamoDB record");
+    }
+}
 
 async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) {
     const apiName = "Evaluate Answers";
@@ -475,7 +514,15 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
 
         const fileId = uploadResponse.fileId;
         console.log(`[${apiName}] File uploaded successfully. File ID: ${fileId}`);
-
+        let updateSummaryStatus = await updateDynamoDbRecord(jdId, resumeId);
+        if (!updateSummaryStatus.status) {
+            console.log(`[${apiName}] Failed to update statsu`);
+            return evaluateAnswersResponse.status(400).send(uploadResponse);
+        }
+        evaluateAnswersResponse.status(200).send({
+            status: true,
+            message: `Successfully evaluated for resumeId: ${resumeId}`,
+        });
         // Generate verdict
         const assistantId = process.env.EVALUATOR_ASSISTANT_ID;
         const verdictResponse = await generateVerdict(fileId, jdFileId, assistantId, resumeFileId);
@@ -494,10 +541,7 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
         }
 
         console.log(`[${apiName}] Successfully evaluated for resumeId: ${resumeId} in ${Date.now() - entryTime} ms.`);
-        return evaluateAnswersResponse.status(200).send({
-            status: true,
-            message: `Successfully evaluated for resumeId: ${resumeId}`,
-        });
+        
     } catch (error) {
         console.error(`[${apiName}] Error:`, error);
         return evaluateAnswersResponse.status(500).send({
