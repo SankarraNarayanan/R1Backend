@@ -71,7 +71,7 @@ function pushToSQS(email, link) {
 
 const sendLink = async function (req, res) {
   const functionName = "Link Generation Api";
-  const body = JSON.parse(req.body);
+  const body = req.body;
   const userDetails = body.userDetails;
   const jdId = body.jdId;
   let userLinkList = [];
