@@ -124,7 +124,7 @@ const sendLink = async function (req, res) {
       console.log('1', transactItems[1].Put)
       userLinkList.push({
         email: e.emailId || '',
-        link: `https://${process.env.CANDIDATE_PANEL_CLOUDFRONT_URL}?linkID=${linkUUID}`,
+        link: `https://d2je27obedxiws.cloudfront.net/?linkID=${linkUUID}`,
       });
       console.log('userLinkList[0', userLinkList[0])
     });
