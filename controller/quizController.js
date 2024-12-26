@@ -533,6 +533,46 @@ async function linkStatusCheck(req, res){
     }
 }
 
+async function inprogressQuestionsFetch(req, res){
+    let APIName = 'inprogressQuestionsFetch'; let verifyLinkResponse = null;
+    try{
+        let { linkId } = req.params;
+        console.log(`[INFO][${APIName}] API Execcution time StartTime: `, Date.now());
+        verifyLinkResponse = await verifyLink(linkId);
+        if(!verifyLinkResponse.status){
+            console.error(`[ERROR][${APIName}] Link Expired LinkID: ${linkId}`);
+            return res.status(200).send({
+                message: 'SUCCESS',
+                link_status: "INACTIVE"
+            });
+        }
+        const command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: {
+                PK: linkId,
+                SK: 'USER_ANSWERS',
+            },
+        });
+
+        let response = await docClient.send(command);
+        if(!('Item' in response)){
+            console.error(`[ERROR][${APIName}] Error in getting user answers: ${linkId}`);
+            return res.status(500).send({
+                message: 'Error in getting user answers',
+                date: Date.now()
+            });
+        }
+        return res.status(200).send({
+            message: 'SUCCESS',
+            user_answers: response.Item.answers
+        });
+    } catch(error) {
+        console.error(`[ERROR][${APIName}] outter catch triggered ERROR: ${error}, ${req.params.linkId}`);
+        return  res.status(500).send({
+            message: 'INTERNAL SERVER ERROR'
+        });
+    }
+}
 
 
-module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers, linkStatusCheck};
+module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers, linkStatusCheck, inprogressQuestionsFetch};
