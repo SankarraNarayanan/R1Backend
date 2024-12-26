@@ -533,46 +533,58 @@ async function linkStatusCheck(req, res){
     }
 }
 
-async function inprogressQuestionsFetch(req, res){
-    let APIName = 'inprogressQuestionsFetch'; let verifyLinkResponse = null;
-    try{
+async function inprogressQuestionsFetch(req, res) {
+    let APIName = 'inprogressQuestionsFetch';
+    let verifyLinkResponse = null;
+    try {
         let { linkId } = req.params;
-        console.log(`[INFO][${APIName}] API Execcution time StartTime: `, Date.now());
+        console.log(`[INFO][${APIName}] API Execution time StartTime: `, Date.now());
         verifyLinkResponse = await verifyLink(linkId);
-        if(!verifyLinkResponse.status){
+
+        if (!verifyLinkResponse.status) {
             console.error(`[ERROR][${APIName}] Link Expired LinkID: ${linkId}`);
             return res.status(200).send({
                 message: 'SUCCESS',
                 link_status: "INACTIVE"
             });
         }
+
         const command = new GetCommand({
             TableName: process.env.TABLENAME,
             Key: {
-                PK: linkId,
+                PK: verifyLinkResponse.data.resumeId,
                 SK: 'USER_ANSWERS',
             },
         });
 
         let response = await docClient.send(command);
-        if(!('Item' in response)){
+        if (!('Item' in response)) {
             console.error(`[ERROR][${APIName}] Error in getting user answers: ${linkId}`);
             return res.status(500).send({
                 message: 'Error in getting user answers',
                 date: Date.now()
             });
         }
+
+        const { answers } = response.Item;
+
+        response = await getQuestionsWithResumeId(verifyLinkResponse.data.resumeId);
+        const { questions } = response.data;
+
         return res.status(200).send({
             message: 'SUCCESS',
-            user_answers: response.Item.answers
+            answers,
+            questions, 
+            endTime: verifyLinkResponse.data.expTime
         });
-    } catch(error) {
-        console.error(`[ERROR][${APIName}] outter catch triggered ERROR: ${error}, ${req.params.linkId}`);
-        return  res.status(500).send({
+    } catch (error) {
+        console.error(`[ERROR][${APIName}] outer catch triggered ERROR: ${error}, ${req.params.linkId}`);
+        return res.status(500).send({
             message: 'INTERNAL SERVER ERROR'
         });
     }
 }
+
 
 
 module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers, linkStatusCheck, inprogressQuestionsFetch};
