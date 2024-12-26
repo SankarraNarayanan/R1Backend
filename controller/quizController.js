@@ -30,7 +30,7 @@
  * Created Date: Wednesday, December 25th 2024, 8:23:44 pm                     *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 8:32:07 pm                               *
+ * Last Modified: December 26th 2024, 11:38:19 am                              *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -339,31 +339,58 @@ const getQuestionAnswers = async function (params){
     }
 }
 
-const putEvaluationResult = async function (resumeId, evaluationResult) {
+const putEvaluationResult = async function (resumeId, evaluationResult, jdId) {
+    const functionName = "putEvaluationResult";
+    console.log(`[INFO] [${functionName}] Starting the transaction process...`);
+
     try {
-
-        const command = new PutCommand({
-            TableName: process.env.TABLENAME,
-            Item: {
-                PK: resumeId,
-                SK: "EVALUATION_SUMMARY",
-                summary: evaluationResult,
+        const transactItems = [
+            {
+                Put: {
+                    TableName: process.env.TABLENAME,
+                    Item: {
+                        PK: resumeId,
+                        SK: "EVALUATION_SUMMARY",
+                        summary: evaluationResult,
+                    },
+                },
             },
-        });
+            {
+                Update: {
+                    TableName: process.env.TABLENAME,
+                    Key: { PK: jdId, SK: resumeId },
+                    UpdateExpression:
+                        "SET summary = :summary, updatedAt = :newUpdatedAt, #status = :newStatus",
+                    ExpressionAttributeNames: {
+                        "#status": "status",
+                    },
+                    ExpressionAttributeValues: {
+                        ":summary": evaluationResult,
+                        ":newUpdatedAt": Date.now(),
+                        ":newStatus": "COMPLETED",
+                    },
+                },
+            },
+        ];
 
+        const command = new TransactWriteCommand({ TransactItems: transactItems });        
         await docClient.send(command);
+
+        console.log(`[INFO] [${functionName}] Transaction completed successfully.`);
         return {
             status: true,
-            message: 'summary added successfully'
+            message: 'Summary added and link updated successfully',
         };
     } catch (error) {
-        console.error("Error putting summary:", error);
+        console.error(`[ERROR] [${functionName}] Error performing transaction:`, error);
         return {
             status: false,
-            message: 'Error adding summary'
-        }
+            message: 'Error processing transaction',
+        };
     }
 };
+
+
 
 async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) {
     const apiName = "Evaluate Answers";
@@ -425,6 +452,16 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
             return evaluateAnswersResponse.status(400).send(answers);
         }
 
+        const resumeFileIdParams = {
+            TableName: process.env.TABLENAME,
+            Key: { PK: jdId, SK: resumeId },
+        };
+        const resumeFileIdresponse = await getQuestionAnswers(resumeFileIdParams);
+        if (!resumeFileIdresponse.status) {
+            console.log(`[${apiName}] Failed to fetch resumeFileId for resumeId: ${resumeId}`);
+            return evaluateAnswersResponse.status(400).send(resumeFileIdresponse);
+        }
+        let resumeFileId = resumeFileIdresponse.data.fileId;
         // Evaluate user responses
         const userSeparatedResponses = evaluateUserAnswers(questions.data.questions, answers.data.answers);
 
@@ -441,7 +478,7 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
 
         // Generate verdict
         const assistantId = process.env.EVALUATOR_ASSISTANT_ID;
-        const verdictResponse = await generateVerdict(fileId, jdFileId, assistantId);
+        const verdictResponse = await generateVerdict(fileId, jdFileId, assistantId, resumeFileId);
         if (!verdictResponse.status) {
             console.log(`[${apiName}] Failed to generate verdict for fileId: ${fileId}`);
             return evaluateAnswersResponse.status(400).send(verdictResponse);
@@ -450,7 +487,7 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
         const evaluationResult = verdictResponse.evaluationResult;
 
         // Save evaluation result to the database
-        const putSummaryResult = await putEvaluationResult(resumeId, evaluationResult);
+        const putSummaryResult = await putEvaluationResult(resumeId, evaluationResult, jdId);
         if (!putSummaryResult.status) {
             console.log(`[${apiName}] Failed to save evaluation result for resumeId: ${resumeId}`);
             return evaluateAnswersResponse.status(400).send(putSummaryResult);

@@ -30,7 +30,7 @@
  * Created Date: Monday, December 23rd 2024, 3:30:29 pm                        *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 25th 2024, 8:42:36 pm                               *
+ * Last Modified: December 26th 2024, 11:31:57 am                              *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -41,11 +41,14 @@
  * --------------------------------------------------------------------------- *
  */
 
+const { Readable } = require('stream');
 const OpenAI = require('openai');
 const fs = require('fs');
 const openai = new OpenAI({
     apiKey: process.env.API_KEY
 });
+const FormData = require('form-data'); 
+const axios = require('axios'); 
 
 // Function to evaluate user answers
 function evaluateUserAnswers(questionData, userAnswers) {
@@ -95,53 +98,57 @@ async function createEvaluationAssistant() {
     }
 }
 
-// Function to upload to openAi
+function jsonToStream(jsonObject) {
+    const stream = new Readable({
+        read() {
+            this.push(JSON.stringify(jsonObject));
+            this.push(null); // Signal the end of the stream
+        },
+    });
+    return stream;
+}
+
 async function uploadToOpenAIFromBuffer(data) {
     const apiName = "UploadToOpenAI";
     console.log(`[${apiName}] Starting the upload process...`);
-
+    
     const fileName = `userResponse${Date.now()}.json`;
     try {
-        const buffer = Buffer.from(JSON.stringify(data), 'utf-8');
-        fs.writeFileSync(fileName, buffer);
+        const stream = jsonToStream(data);
+        // console.log(fs.createReadStream('userResponse.json'));
 
-        if (!fs.existsSync(fileName)) {
-            console.error(`[${apiName}] File does not exist after writing: ${fileName}`);
-            return { status: false, error: `File ${fileName} does not exist after write` };
-        }
+        // Create a FormData object and append the stream as a file
+        const formData = new FormData();
+        formData.append('file', stream, {
+            filename: fileName,
+        });
+        formData.append('purpose', 'assistants');
 
-        const uploadResponse = await openai.files.create({
-            file: fs.createReadStream(fileName),
-            purpose: "assistants",
+        // Upload the FormData to OpenAI
+        const uploadResponse = await axios.post('https://api.openai.com/v1/files', formData, {
+            headers: {
+                'Authorization': `Bearer ${process.env.API_KEY}`,
+                ...formData.getHeaders(),
+            },
         });
 
-        if (uploadResponse?.id) {
-            console.log(`[${apiName}] File uploaded successfully. File ID: ${uploadResponse.id}`);
+        if (uploadResponse?.data.id) {
+            console.log(`[${apiName}] File uploaded successfully. File ID: ${uploadResponse.data.id}`);
         } else {
             console.error(`[${apiName}] Failed to get a valid file ID from OpenAI upload response.`);
             return { status: false, error: "Failed to retrieve file ID from OpenAI." };
         }
-
-        fs.unlinkSync(fileName);
-
         // Return successful response
-        return { status: true, fileId: uploadResponse.id };
+        // console.log(response);
+        return { status: true, fileId: uploadResponse.data.id };
 
     } catch (error) {
         console.error(`[${apiName}] Error during file upload:`, error);
-
-        // Clean up the file if it exists in case of error
-        if (fs.existsSync(fileName)) {
-            fs.unlinkSync(fileName);
-            console.log(`[${apiName}] Temporary file cleaned up after error: ${fileName}`);
-        }
-
         return { status: false, error: "File upload to OpenAI failed. Please check logs for details." };
     }
 }
-
 // Function to generate verdict
-async function generateVerdict(userResponseFileId, jdFileId, assist_id) {
+async function generateVerdict(userResponseFileId, jdFileId, assist_id, resume_file_id) {
     const apiName = "GenerateVerdict";
     console.log(`[${apiName}] Starting verdict generation...`);
 
@@ -151,10 +158,11 @@ async function generateVerdict(userResponseFileId, jdFileId, assist_id) {
                 {
                     role: "user",
                     content:
-                        "Evaluate the candidate against the resume and the test result having the correct and incorrect answers provided by the candidate which is stored in the file. Provide a detailed assessment of the candidate, including: Strengths and weaknesses based on their answers. Alignment with the job requirements. Suggestions for areas of improvement, if needed. An overall recommendation on whether the candidate is suitable for further interview rounds based on your analysis with the resume, match for the resume against the job description, and the test results.",
+                        "Evaluate the candidate against the resume and the test result having the correct and incorrect answers provided by the candidate which is stored in the file. Provide a detailed assessment of the candidate, including: Strengths and weaknesses based on their answers. Alignment with the job requirements. Suggestions for areas of improvement, if needed. An overall recommendation on whether the candidate is suitable for further interview rounds based on your analysis with the resume, match for the resume against the job description, and the test results. Please provide a concise and professional response to the thread prompt. Ensure the following:- Avoid including any source references, markup artifacts, or annotative markers (e.g., Exclude any content sourced directly from attached files of type 'file_search'. - Maintain a clear, structured, and professional tone throughout the response.",
                     attachments: [
                         { file_id: jdFileId, tools: [{ type: "file_search" }] },
                         { file_id: userResponseFileId, tools: [{ type: "file_search" }] },
+                        { file_id: resume_file_id, tools: [{ type: "file_search" }] },
                     ],
                 },
             ],
@@ -170,9 +178,11 @@ async function generateVerdict(userResponseFileId, jdFileId, assist_id) {
             instructions: `Please provide a concise and professional response to the thread prompt. 
             Ensure the following:
             - Avoid including any source references, markup artifacts, or annotative markers (e.g., Exclude any content sourced directly from attached files of type 'file_search'.
-            - Maintain a clear, structured, and professional tone throughout the response.`,
+            - Maintain a clear, structured, and professional tone throughout the response.
+            - strictly follow the rules mentioned above. dont provide source information
+            - provide only summary response dont add any other string irrelevant to the summary`,
         });
-        
+
 
         if (run?.status === 'completed') {
             console.log(`[${apiName}] Thread run completed successfully.`);
