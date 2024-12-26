@@ -497,7 +497,7 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
         const fileId = uploadResponse.fileId;
         console.log(`[${apiName}] File uploaded successfully. File ID: ${fileId}`);
         let parmas = {
-            TableName: tableName,
+            TableName: process.env.TABLENAME,
             Key: {
                 PK: jdId,
                 SK: resumeId,
@@ -518,7 +518,7 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
             return evaluateAnswersResponse.status(400).send(uploadResponse);
         }
         parmas = {
-            TableName: tableName,
+            TableName: process.env.TABLENAME,
             Key: {
                 PK: 'LINK',
                 SK: linkId,
