@@ -394,30 +394,12 @@ const putEvaluationResult = async function (resumeId, evaluationResult, jdId) {
     }
 };
 
-async function updateDynamoDbRecord(jdId, resumeId) {
+async function updateDynamoDbRecord(params) {
     const tableName = process.env.TABLENAME;
 
     if (!jdId || !resumeId) {
         throw new Error("Both jdId (PK) and resumeId (SK) are required.");
     }
-
-    const params = {
-        TableName: tableName,
-        Key: {
-            PK: jdId,
-            SK: resumeId,
-        },
-        UpdateExpression: "SET updatedAt = :newUpdatedAt, #status = :newStatus",
-        ExpressionAttributeNames: {
-            "#status": "status",
-        },
-        ExpressionAttributeValues: {
-            ":newUpdatedAt": Date.now(),
-            ":newStatus": "COMPLETED",
-        },
-        ReturnValues: "ALL_NEW",
-    };
-
     try {
         const command = new UpdateCommand(params);
         const result = await docClient.send(command);
@@ -514,11 +496,43 @@ async function evaluateAnswers(evaluateAnswersRequest, evaluateAnswersResponse) 
 
         const fileId = uploadResponse.fileId;
         console.log(`[${apiName}] File uploaded successfully. File ID: ${fileId}`);
-        let updateSummaryStatus = await updateDynamoDbRecord(jdId, resumeId);
+        let parmas = {
+            TableName: tableName,
+            Key: {
+                PK: jdId,
+                SK: resumeId,
+            },
+            UpdateExpression: "SET updatedAt = :newUpdatedAt, #status = :newStatus",
+            ExpressionAttributeNames: {
+                "#status": "status",
+            },
+            ExpressionAttributeValues: {
+                ":newUpdatedAt": Date.now(),
+                ":newStatus": "COMPLETED",
+            },
+            ReturnValues: "ALL_NEW",
+        };
+        let updateSummaryStatus = await updateDynamoDbRecord(parmas);
         if (!updateSummaryStatus.status) {
             console.log(`[${apiName}] Failed to update statsu`);
             return evaluateAnswersResponse.status(400).send(uploadResponse);
         }
+        parmas = {
+            TableName: tableName,
+            Key: {
+                PK: 'LINK',
+                SK: linkId,
+            },
+            UpdateExpression: "SET #status = :newStatus",
+            ExpressionAttributeNames: {
+                "#status": "status"
+            },
+            ExpressionAttributeValues: {
+                ":newStatus": "INACTIVE",
+            },
+            ReturnValues: "ALL_NEW",
+        };
+        updateSummaryStatus = await updateDynamoDbRecord(parmas);
         evaluateAnswersResponse.status(200).send({
             status: true,
             message: `Successfully evaluated for resumeId: ${resumeId}`,
