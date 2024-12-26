@@ -633,7 +633,7 @@ async function inprogressQuestionsFetch(req, res) {
             message: 'SUCCESS',
             answers,
             questions, 
-            endTime: verifyLinkResponse.data.expTime
+            endTime: verifyLinkResponse.data.endTime
         });
     } catch (error) {
         console.error(`[ERROR][${APIName}] outer catch triggered ERROR: ${error}, ${req.params.linkId}`);
