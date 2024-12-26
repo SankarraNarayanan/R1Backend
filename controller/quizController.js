@@ -30,7 +30,7 @@
  * Created Date: Wednesday, December 25th 2024, 8:23:44 pm                     *
  * Author: Sankarra Narayanan G <sankar@codestax.ai>                           *
  * -----                                                                       *
- * Last Modified: December 26th 2024, 11:38:19 am                              *
+ * Last Modified: December 26th 2024, 12:32:57 pm                              *
  * Modified By: Sankarra Narayanan G                                           *
  * -----                                                                       *
  * Any app that can be written in JavaScript,                                  *
@@ -42,7 +42,7 @@
  */
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { PutCommand, DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { PutCommand, DynamoDBDocumentClient, GetCommand, TransactWriteCommand } = require("@aws-sdk/lib-dynamodb");
 const { verifyLink, updateStatusAfterQnGenerated, updateStartEndTime } = require("../utils/verifyLinkHelper");
 const { questionGenerator } = require('../AiController/questionGenerator');
 const { fromSSO } = require('@aws-sdk/credential-providers');
@@ -585,6 +585,38 @@ async function inprogressQuestionsFetch(req, res) {
     }
 }
 
+async function getSummary(req, res){
+    let APIName = 'getSummary'; 
+    try{
+        let jdId = req.query.jdId;
+        let resumeId = req.query.resumeId;
+        console.log('req', jdId, resumeId);
+        console.log(`[INFO][${APIName}] API Execcution time StartTime: `, Date.now());
+        
+        const command = new GetCommand({
+            TableName: process.env.TABLENAME,
+            Key: { PK: jdId, SK: resumeId },
+        });
 
+        let response = await docClient.send(command);
+        if(!('Item' in response)){
+            console.error(`[ERROR][${APIName}] Error in getting summary: ${linkId}, ${resumeId}`);
+            return res.status(500).send({
+                message: 'Error in getting summary',
+                date: Date.now()
+            });
+        }
+        console.log(`[INFO][${APIName}] API Execcution time End time: `, Date.now());
+        return res.status(200).send({
+            message: 'SUCCESS',
+            summary: response.Item.summary
+        });
+    } catch(error) {
+        console.error(`[ERROR][${APIName}]: ${error}, ${req.params.linkId}`);
+        return  res.status(500).send({
+            message: 'INTERNAL SERVER ERROR'
+        });
+    }
+}
 
-module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers, linkStatusCheck, inprogressQuestionsFetch};
+module.exports = {putQuestions,getQuestions: getQuestionsWithResumeId,getQuestionsWithLinkId,submitQuestion,generateQuestions, evaluateAnswers, linkStatusCheck, inprogressQuestionsFetch, getSummary};
